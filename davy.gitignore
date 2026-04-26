@@ -1,0 +1,17 @@
+# Environnement virtuel Python
+backend/venv/
+
+# Variables sensibles
+backend/.env
+
+# Fichiers Python compilés
+__pycache__/
+*.pyc
+*.pyo
+
+# VS Code
+.vscode/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
