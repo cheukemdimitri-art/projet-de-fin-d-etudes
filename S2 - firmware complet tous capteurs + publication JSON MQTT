@@ -1,0 +1,139 @@
+#include <DHT.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+// === BROCHES ===
+#define DHT_PIN 4
+#define TRIG_PIN 5
+#define ECHO_PIN 18
+#define FUITE_PIN 21
+#define LED_R 25
+#define LED_G 26
+#define LED_B 27
+#define BUZZER_PIN 32
+#define HAUTEUR_CUVE 30
+
+// === WIFI & MQTT ===
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+const char* mqtt_server = "broker.hivemq.com";
+const int mqtt_port = 1883;
+const char* client_id = "iut-bandjoun-cap01";
+
+// === TOPICS MQTT ===
+const char* topic_gaz = "iut/bandjoun/capteur/gaz";
+const char* topic_eau = "iut/bandjoun/capteur/eau";
+const char* topic_alerte = "iut/bandjoun/alerte";
+const char* topic_json = "iut/bandjoun/capteur/json";
+
+DHT dht(DHT_PIN, DHT22);
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+unsigned long lastSend = 0;
+
+// === FONCTIONS ===
+float mesureDistance() {
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  long duree = pulseIn(ECHO_PIN, HIGH);
+  return duree * 0.034 / 2;
+}
+
+void setRGB(int r, int g, int b) {
+  analogWrite(LED_R, r);
+  analogWrite(LED_G, g);
+  analogWrite(LED_B, b);
+}
+
+void connectWiFi() {
+  Serial.print("Connexion WiFi");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" Connecte!");
+}
+
+void connectMQTT() {
+  while (!client.connected()) {
+    Serial.print("Connexion MQTT...");
+    if (client.connect(client_id)) {
+      Serial.println(" OK!");
+    } else {
+      Serial.println(" Echec, retry 3s");
+      delay(3000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(FUITE_PIN, INPUT_PULLUP);
+  pinMode(BUZZER_PIN, OUTPUT);
+  dht.begin();
+  setRGB(0, 255, 0);
+
+  connectWiFi();
+  client.setServer(mqtt_server, mqtt_port);
+  connectMQTT();
+
+  Serial.println("=== Systeme pret ===");
+}
+
+void loop() {
+  if (!client.connected()) connectMQTT();
+  client.loop();
+
+  if (millis() - lastSend >= 2000) {
+    lastSend = millis();
+
+    // Lire les capteurs
+    int valGaz = analogRead(34);
+    int valCO = analogRead(35);
+    float temp = dht.readTemperature();
+    float hum = dht.readHumidity();
+    float distance = mesureDistance();
+    float niveau = HAUTEUR_CUVE - distance;
+    bool fuite = false;
+    if (digitalRead(FUITE_PIN) == LOW) {
+      delay(50);
+      if (digitalRead(FUITE_PIN) == LOW) fuite = true;
+    }
+
+    // Déterminer le niveau d'alerte
+    String niveauAlerte = "NORMAL";
+    if (valGaz > 3500 || fuite) niveauAlerte = "CRITIQUE";
+    else if (valGaz > 2500) niveauAlerte = "DANGER";
+    else if (valGaz > 1500) niveauAlerte = "WARNING";
+
+    // Construire le JSON
+    char jsonBuffer[256];
+    snprintf(jsonBuffer, sizeof(jsonBuffer),
+      "{\"capteur_id\":\"CAP01\",\"zone\":\"A\","
+      "\"gaz_ppm\":%d,\"co_ppm\":%d,"
+      "\"temp_c\":%.1f,\"niveau_cuve_cm\":%.1f,"
+      "\"fuite_sol\":%s,\"niveau\":\"%s\"}",
+      valGaz, valCO, temp, niveau,
+      fuite ? "true" : "false",
+      niveauAlerte.c_str()
+    );
+
+    // Publier sur MQTT
+    client.publish(topic_json, jsonBuffer);
+    client.publish(topic_alerte, niveauAlerte.c_str());
+
+    // Afficher dans Serial Monitor
+    Serial.println(jsonBuffer);
+
+    // LED selon niveau
+    if (niveauAlerte == "NORMAL") { setRGB(0, 255, 0); digitalWrite(BUZZER_PIN, LOW); }
+    else if (niveauAlerte == "WARNING") { setRGB(255, 165, 0); digitalWrite(BUZZER_PIN, LOW); }
+    else if (niveauAlerte == "DANGER") { setRGB(255, 0, 0); digitalWrite(BUZZER_PIN, LOW); }
+    else { setRGB(255, 0, 0); digitalWrite(BUZZER_PIN, HIGH); }
+  }
+}
