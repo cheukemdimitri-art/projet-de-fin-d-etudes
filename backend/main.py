@@ -1,16 +1,24 @@
 # backend/main.py
-
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from database import Base, engine
+from models import Zone, Capteur, Alerte, Utilisateur
+from routes.capteurs import router as capteurs_router
+from routes.zones import router as zones_router
+from routes.alertes import router as alertes_router
+from routes.vannes import router as vannes_router
+import json
 
-# ── Création de l'application ─────────────────────────────────────────────────
+# ── Créer les tables ──────────────────────────────────────────────────────────
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(
-    title="API Détection Fuites",
-    description="Système de détection de fuites gaz et liquides — IUT FV Bandjoun",
-    version="1.0.0"
+    title="API Detection Fuites",
+    description="IUT FV Bandjoun — PFE 2024-2025",
+    version="3.0.0"
 )
 
-# ── Autoriser React et Flutter à appeler l'API (CORS) ─────────────────────────
+# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,16 +26,55 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Endpoint de test — Semaine 1 ──────────────────────────────────────────────
+# ── Gestionnaire de connexions WebSocket ──────────────────────────────────────
+class GestionnaireConnexions:
+    def __init__(self):
+        self.connexions_actives = []
+
+    async def connecter(self, websocket: WebSocket):
+        await websocket.accept()
+        self.connexions_actives.append(websocket)
+        print(f"✅ Nouveau client WebSocket connecté. Total : {len(self.connexions_actives)}")
+
+    def deconnecter(self, websocket: WebSocket):
+        self.connexions_actives.remove(websocket)
+        print(f"❌ Client WebSocket déconnecté. Total : {len(self.connexions_actives)}")
+
+    async def diffuser(self, message: dict):
+        for connexion in self.connexions_actives:
+            try:
+                await connexion.send_json(message)
+            except Exception:
+                pass
+
+gestionnaire = GestionnaireConnexions()
+
+# ── Endpoint WebSocket ────────────────────────────────────────────────────────
+@app.websocket("/ws/live")
+async def websocket_endpoint(websocket: WebSocket):
+    await gestionnaire.connecter(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        gestionnaire.deconnecter(websocket)
+
+# ── Inclure les routes ────────────────────────────────────────────────────────
+app.include_router(capteurs_router)
+app.include_router(zones_router)
+app.include_router(alertes_router)
+app.include_router(vannes_router)
+
+# ── Endpoints de base ─────────────────────────────────────────────────────────
+@app.get("/")
+def racine():
+    return {"message": "API Detection Fuites operationnelle"}
+
 @app.get("/api/test")
 def test():
     return {
         "status": "ok",
-        "message": "API opérationnelle",
-        "equipe": "IUT FV Bandjoun — PFE 2024-2025"
+        "message": "API operationnelle",
+        "version": "3.0.0",
+        "clients_connectes": len(gestionnaire.connexions_actives)
     }
-
-# ── Endpoint racine ───────────────────────────────────────────────────────────
-@app.get("/")
-def racine():
-    return {"message": "Bienvenue sur l'API de détection de fuites"}

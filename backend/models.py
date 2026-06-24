@@ -54,3 +54,15 @@ class Utilisateur(Base):
     role          = Column(String, default="OPERATEUR")
     actif         = Column(Boolean, default=True)
     date_creation = Column(DateTime, server_default=func.now())
+    # ── Table Electrovanne ────────────────────────────────────────────────────────
+class Electrovanne(Base):
+    __tablename__ = "electrovannes"
+
+    id              = Column(String, primary_key=True)
+    nom             = Column(String, nullable=False)
+    zone_id         = Column(String, ForeignKey("zones.id"))
+    capteur_id      = Column(String, ForeignKey("capteurs.id"))
+    statut          = Column(String, default="OUVERTE")
+    mode            = Column(String, default="AUTO")
+    derniere_action = Column(DateTime, server_default=func.now())
+    actionneur      = Column(String)

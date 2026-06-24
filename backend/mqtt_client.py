@@ -4,6 +4,8 @@ import json
 import os
 from dotenv import load_dotenv
 from influx_service import ecrire_mesure
+from alert_service import verifier_et_alerter
+from email_service import envoyer_email_alerte
 
 load_dotenv()
 
@@ -11,29 +13,38 @@ BROKER = os.getenv("MQTT_BROKER", "localhost")
 PORT   = int(os.getenv("MQTT_PORT", 1883))
 TOPIC  = os.getenv("MQTT_TOPIC",  "lab/zone_a/capteurs")
 
-# ── Réception d'un message MQTT ───────────────────────────────────────────────
 def on_message(client, userdata, msg):
     try:
         donnees = json.loads(msg.payload.decode())
-        print(f"✅ Message reçu : {donnees}")
+        print(f"\n📩 Message reçu de : {donnees.get('device_id')}")
 
-        # Extraire les valeurs
-        device_id   = donnees.get("device_id",  "INCONNU")
-        capteurs    = donnees.get("capteurs",    {})
-        mq2_ppm     = capteurs.get("mq2_ppm",   0)
-        mq7_ppm     = capteurs.get("mq7_ppm",   0)
+        capteurs    = donnees.get("capteurs", {})
+        device_id   = donnees.get("device_id", "INCONNU")
+        mq2_ppm     = capteurs.get("mq2_ppm",       0)
+        mq7_ppm     = capteurs.get("mq7_ppm",       0)
         niveau_cuve = capteurs.get("niveau_cuve_cm", 0)
-        fuite_sol   = capteurs.get("fuite_sol", False)
+        fuite_sol   = capteurs.get("fuite_sol",  False)
 
-        # Sauvegarder dans InfluxDB
+        # 1. Sauvegarder dans InfluxDB
         ecrire_mesure(device_id, mq2_ppm, mq7_ppm, niveau_cuve, fuite_sol)
+
+        # 2. Vérifier et créer les alertes
+        alertes = verifier_et_alerter(donnees)
+
+        # 3. Envoyer email pour chaque alerte
+        for alerte in alertes:
+            if alerte["niveau"] in ["WARNING", "DANGER", "CRITIQUE"]:
+                envoyer_email_alerte(
+                    alerte["niveau"],
+                    f"Alerte {alerte['niveau']} capteur {alerte['capteur_id']}",
+                    alerte["capteur_id"]
+                )
 
         print("-" * 40)
 
     except Exception as e:
-        print(f"❌ Erreur traitement message : {e}")
+        print(f"❌ Erreur : {e}")
 
-# ── Connexion au broker ───────────────────────────────────────────────────────
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(f"✅ Connecté au broker MQTT")
@@ -42,7 +53,6 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f"❌ Connexion échouée : code {rc}")
 
-# ── Démarrer le client ────────────────────────────────────────────────────────
 def demarrer_client():
     client = mqtt.Client()
     client.on_connect = on_connect
