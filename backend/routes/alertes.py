@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from database import get_db
 from models import Alerte, Capteur
-
+from fastapi import Depends
+from security import obtenir_utilisateur_courant
+from fastapi.responses import FileResponse
+from rapport_service import generer_rapport_mensuel, generer_rapport_incident
+from qrcode_service import generer_qrcode_capteur
 router = APIRouter()
 
 # ── GET /api/alertes — Liste toutes les alertes ───────────────────────────────
@@ -54,7 +58,8 @@ def get_alertes_actives(db: Session = Depends(get_db)):
 def acquitter_alerte(
     alerte_id: str,
     commentaire: str = "Alerte traitee",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    utilisateur=Depends(obtenir_utilisateur_courant)
 ):
     alerte = db.query(Alerte).filter(Alerte.id == alerte_id).first()
 
@@ -103,3 +108,25 @@ def get_stats(db: Session = Depends(get_db)):
                          else "WARNING" if alertes_actives > 0
                          else "NORMAL"
     }
+@router.get("/api/rapports/generer")
+def generer_rapport():
+    chemin = generer_rapport_mensuel()
+    if chemin:
+        return FileResponse(
+            chemin,
+            media_type="application/pdf",
+            filename="rapport_mensuel.pdf"
+        )
+    raise HTTPException(status_code=500, detail="Erreur generation rapport")
+
+
+@router.get("/api/alertes/{alerte_id}/rapport")
+def rapport_incident(alerte_id: str):
+    chemin = generer_rapport_incident(alerte_id)
+    if chemin:
+        return FileResponse(
+            chemin,
+            media_type="application/pdf",
+            filename=f"rapport_incident_{alerte_id[:8]}.pdf"
+        )
+    raise HTTPException(status_code=404, detail="Alerte non trouvee ou erreur generation")

@@ -7,6 +7,9 @@ from routes.capteurs import router as capteurs_router
 from routes.zones import router as zones_router
 from routes.alertes import router as alertes_router
 from routes.vannes import router as vannes_router
+from routes.auth import router as auth_router
+from scheduler_service import demarrer_planificateur
+from qrcode_service import generer_tous_qrcodes
 import json
 
 # ── Créer les tables ──────────────────────────────────────────────────────────
@@ -64,6 +67,7 @@ app.include_router(capteurs_router)
 app.include_router(zones_router)
 app.include_router(alertes_router)
 app.include_router(vannes_router)
+app.include_router(auth_router)
 
 # ── Endpoints de base ─────────────────────────────────────────────────────────
 @app.get("/")
@@ -78,3 +82,8 @@ def test():
         "version": "3.0.0",
         "clients_connectes": len(gestionnaire.connexions_actives)
     }
+@app.on_event("startup")
+async def startup_event():
+    demarrer_planificateur()
+    generer_tous_qrcodes()
+    print("Services demarres !")    

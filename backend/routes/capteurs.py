@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Capteur
+from fastapi.responses import FileResponse
+from qrcode_service import generer_qrcode_capteur
 
 router = APIRouter()
 
@@ -34,3 +36,13 @@ def get_capteur(capteur_id: str, db: Session = Depends(get_db)):
     if not capteur:
         return {"erreur": "Capteur non trouvé"}
     return capteur
+@router.get("/api/capteurs/{capteur_id}/qrcode")
+def get_qrcode(capteur_id: str):
+    chemin = generer_qrcode_capteur(capteur_id)
+    if chemin:
+        return FileResponse(
+            chemin,
+            media_type="image/png",
+            filename=f"qr_{capteur_id}.png"
+        )
+    raise HTTPException(status_code=404, detail="QR Code non genere")
