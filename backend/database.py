@@ -1,33 +1,27 @@
 # backend/database.py
-import psycopg2
-import psycopg2.extras
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import psycopg2
 
-# ── Paramètres de connexion ───────────────────────────────────────────────────
-DB_PARAMS = {
-    "host":     "localhost",
-    "port":     5432,
-    "user":     "postgres",
-    "password": "1234",
-    "dbname":   "detection_fuites",
-}
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "1234")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "detection_fuites")
 
 POSTGRES_URL = (
-    f"postgresql://{DB_PARAMS['user']}:"
-    f"{DB_PARAMS['password']}@"
-    f"{DB_PARAMS['host']}:"
-    f"{DB_PARAMS['port']}/"
-    f"{DB_PARAMS['dbname']}"
+    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+    f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 )
 
 print("URL PostgreSQL :", POSTGRES_URL)
 
-# ── SQLAlchemy pour les modèles ───────────────────────────────────────────────
-engine       = create_engine(POSTGRES_URL)
+engine = create_engine(POSTGRES_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base         = declarative_base()
+Base = declarative_base()
+
 
 def get_db():
     db = SessionLocal()
@@ -36,14 +30,14 @@ def get_db():
     finally:
         db.close()
 
-# ── Connexion directe psycopg2 (contourne le problème encodage) ───────────────
+
 def get_connexion():
     conn = psycopg2.connect(
-        host=DB_PARAMS["host"],
-        port=DB_PARAMS["port"],
-        user=DB_PARAMS["user"],
-        password=DB_PARAMS["password"],
-        dbname=DB_PARAMS["dbname"],
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+        dbname=POSTGRES_DB,
         options="-c client_encoding=UTF8"
     )
     return conn
