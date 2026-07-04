@@ -11,7 +11,7 @@ from routes.auth import router as auth_router
 from scheduler_service import demarrer_planificateur
 from qrcode_service import generer_tous_qrcodes
 import json
-
+from mqtt_client import demarrer_client_thread 
 # ── Créer les tables ──────────────────────────────────────────────────────────
 Base.metadata.create_all(bind=engine)
 
@@ -86,4 +86,5 @@ def test():
 async def startup_event():
     demarrer_planificateur()
     generer_tous_qrcodes()
-    print("Services demarres !")    
+    demarrer_client_thread(gestionnaire)  # ← AJOUTER cette ligne
+    print("✅ Tous les services démarrés !")
