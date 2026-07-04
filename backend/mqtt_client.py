@@ -55,17 +55,16 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Erreur : {e}")
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
+def on_connect(client, userdata, flags, reason_code, properties):
+    if reason_code == 0:
         print("Connecte au broker MQTT")
         client.subscribe(TOPIC)
         print(f"Abonne au topic : {TOPIC}")
     else:
-        print(f"Connexion echouee : code {rc}")
-
+        print(f"Connexion echouee : code {reason_code}")
 
 def demarrer_client():
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(BROKER, PORT, keepalive=60)
