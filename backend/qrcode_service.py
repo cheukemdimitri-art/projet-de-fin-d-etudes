@@ -4,10 +4,17 @@ import qrcode
 from database import SessionLocal
 from models import Capteur
 
+DEFAULT_PUBLIC_BASE_URL = "https://projet-de-fin-d-etudes.onrender.com"
+PUBLIC_BASE_URL = (
+    os.getenv("PUBLIC_BASE_URL")
+    or os.getenv("RENDER_EXTERNAL_URL")
+    or DEFAULT_PUBLIC_BASE_URL
+).rstrip("/")
+
 
 def generer_qrcode_capteur(capteur_id: str):
     try:
-        url = f"http://localhost:8000/api/capteurs/{capteur_id}"
+        url = f"{PUBLIC_BASE_URL}/api/capteurs/{capteur_id}"
 
         qr = qrcode.QRCode(
             version=1,
@@ -25,7 +32,7 @@ def generer_qrcode_capteur(capteur_id: str):
         chemin = f"{dossier}/qr_{capteur_id}.png"
         img.save(chemin)
 
-        print(f"QR Code genere : {chemin}")
+        print(f"QR Code genere : {chemin} -> {url}")
         return chemin
 
     except Exception as e:
