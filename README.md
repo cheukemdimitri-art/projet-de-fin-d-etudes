@@ -5,6 +5,6 @@ on va travaillez ici ensemble
 
 L'APK PURECONTROL est servi par le frontend Vercel depuis :
 
-https://purecontrol-frontend.vercel.app/downloads/PURECONTROL-v1.0-release.apk
+https://purecontrol-frontend.vercel.app/downloads/PURECONTROL-v1.1-release.apk
 
 Dans le dashboard, ouvrir l'onglet **Application** ou utiliser le bouton **APK Android** dans la barre haute.
