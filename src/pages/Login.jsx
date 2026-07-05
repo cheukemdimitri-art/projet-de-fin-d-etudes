@@ -10,7 +10,6 @@ export default function Login({ onLogin }) {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const googleEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -157,22 +156,16 @@ export default function Login({ onLogin }) {
                 </div>
               )}
 
-              {googleEnabled ? (
-                <div className="flex justify-center">
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => setError('Connexion Google annulee ou impossible.')}
-                    theme="filled_black"
-                    text="signup_with"
-                    shape="rectangular"
-                    width="320"
-                  />
-                </div>
-              ) : (
-                <div className="bg-amber-950/30 border border-amber-800/50 rounded-lg px-3 py-2 text-xs text-amber-300">
-                  VITE_GOOGLE_CLIENT_ID doit etre configure sur Vercel.
-                </div>
-              )}
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError('Connexion Google annulee ou impossible.')}
+                  theme="filled_black"
+                  text="signup_with"
+                  shape="rectangular"
+                  width="320"
+                />
+              </div>
             </div>
           )}
         </div>
