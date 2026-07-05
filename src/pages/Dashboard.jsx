@@ -244,10 +244,10 @@ export default function Dashboard({ user }) {
   // RENDER
   // ============================================================
   return (
-    <div className="flex h-screen bg-slate-900 text-slate-100 overflow-hidden font-sans">
+    <div className="flex min-h-screen flex-col bg-slate-900 text-slate-100 font-sans md:h-screen md:flex-row md:overflow-hidden">
 
       {/* ===== SIDEBAR (style SiteKiosk) ===== */}
-      <aside className="w-52 bg-slate-950 border-r border-slate-800 flex flex-col shrink-0">
+      <aside className="w-full bg-slate-950 border-b border-slate-800 flex shrink-0 flex-col md:w-52 md:border-b-0 md:border-r">
         {/* Logo */}
         <div className="p-4 border-b border-slate-800">
           <div className="flex items-center gap-2">
@@ -260,14 +260,14 @@ export default function Dashboard({ user }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex gap-1 overflow-x-auto p-2 md:block md:flex-1 md:space-y-0.5 md:overflow-y-auto">
           {NAV.map(item => {
             const Icon = item.icon;
             const isActive = activeNav === item.id;
             const alertCount = item.id === 'alertes' ? (stats?.alertes?.actives || 0) : 0;
             return (
               <button key={item.id} onClick={() => setActiveNav(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                className={`flex shrink-0 items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all md:w-full md:gap-3 ${
                   isActive
                     ? 'bg-emerald-600 text-white'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -285,7 +285,7 @@ export default function Dashboard({ user }) {
         </nav>
 
         {/* Profil + déconnexion */}
-        <div className="p-3 border-t border-slate-800">
+        <div className="hidden p-3 border-t border-slate-800 md:block">
           <div className="text-[10px] text-slate-400 mb-1 truncate">{user?.nom}</div>
           <div className="text-[9px] text-slate-600 font-mono mb-2">{user?.role}</div>
           <button onClick={() => authService.logout()}
@@ -296,17 +296,17 @@ export default function Dashboard({ user }) {
       </aside>
 
       {/* ===== CONTENU PRINCIPAL ===== */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex min-h-0 flex-col md:overflow-hidden">
 
         {/* --- Top bar --- */}
-        <header className="bg-slate-950 border-b border-slate-800 px-5 py-3 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="bg-slate-950 border-b border-slate-800 px-3 py-3 flex shrink-0 flex-col gap-3 sm:px-5 sm:flex-row sm:justify-between sm:items-center">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-sm font-semibold text-white capitalize">{activeNav}</h1>
             {/* Fil d'Ariane */}
             <span className="text-slate-600 text-xs">/ Dashboard /</span>
             <span className="text-slate-400 text-xs capitalize">{activeNav}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {/* Statut live */}
             {liveData && (
               <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
@@ -333,6 +333,10 @@ export default function Dashboard({ user }) {
               className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-slate-700 text-slate-400 hover:border-emerald-500/60 hover:text-emerald-300 transition">
               <Download size={11} /> Rapport mensuel
             </button>
+            <button onClick={() => authService.logout()}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-slate-700 text-slate-400 hover:border-rose-500/60 hover:text-rose-300 transition md:hidden">
+              <LogOut size={11} /> Sortir
+            </button>
             {/* Statut global */}
             <span className="px-2.5 py-1 rounded text-[10px] font-bold font-mono border"
               style={{ borderColor: globalColor + '60', color: globalColor, background: globalColor + '15' }}>
@@ -342,7 +346,7 @@ export default function Dashboard({ user }) {
         </header>
 
         {/* --- Corps scrollable --- */}
-        <main className="flex-1 overflow-y-auto p-4">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <RefreshCw className="animate-spin text-emerald-400" size={32} />
@@ -354,7 +358,7 @@ export default function Dashboard({ user }) {
                 <div className="space-y-4">
 
                   {/* KPI row (style SiteKiosk — 4 cartes) */}
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
                     {[
                       { label: 'Capteurs actifs', val: stats?.capteurs?.actifs ?? '—', total: stats?.capteurs?.total ?? 0,
                         sub: `/ ${stats?.capteurs?.total ?? 0} total`, color: '#10b981', icon: Activity },
@@ -380,7 +384,7 @@ export default function Dashboard({ user }) {
                   </div>
 
                   {/* Ligne 2 : Statuts + Zones + Alertes actives */}
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 xl:gap-4">
 
                     {/* Machine Status (style SiteKiosk) */}
                     <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
@@ -458,14 +462,15 @@ export default function Dashboard({ user }) {
                   </div>
 
                   {/* Ligne 3 : Tableau capteurs + Vannes */}
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 xl:grid-cols-3 xl:gap-4">
                     {/* Tableau projets (liste capteurs — style SiteKiosk) */}
-                    <div className="col-span-2 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+                    <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden xl:col-span-2">
                       <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex justify-between items-center">
                         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Matrice Capteurs</h3>
                         <span className="text-[10px] text-slate-500 font-mono">{capteurs.length} périphériques</span>
                       </div>
-                      <table className="w-full text-xs">
+                      <div className="overflow-x-auto">
+                      <table className="min-w-[680px] w-full text-xs">
                         <thead>
                           <tr className="bg-slate-900/50">
                             <th className="text-left px-4 py-2 text-[10px] text-slate-500 uppercase font-semibold">Capteur</th>
@@ -513,6 +518,7 @@ export default function Dashboard({ user }) {
                           )}
                         </tbody>
                       </table>
+                      </div>
                     </div>
 
                     {/* Vannes */}
@@ -554,10 +560,10 @@ export default function Dashboard({ user }) {
               {/* ======== VUE CAPTEURS ======== */}
               {activeNav === 'capteurs' && (
                 <div>
-                  <div className="mb-4 flex justify-between items-center">
+                  <div className="mb-4 flex flex-wrap justify-between items-center gap-2">
                     <h2 className="text-sm font-semibold text-white">Tous les capteurs ({capteurs.length})</h2>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {capteurs.map(c => {
                       const capteurStatus = getCapteurStatus(c);
                       const isDanger = ['DANGER', 'CRITIQUE'].includes(capteurStatus);
@@ -606,7 +612,7 @@ export default function Dashboard({ user }) {
                       );
                     })}
                     {capteurs.length === 0 && (
-                      <div className="col-span-3 text-center py-16 text-slate-500">
+                      <div className="text-center py-16 text-slate-500 sm:col-span-2 xl:col-span-3">
                         <Activity className="mx-auto mb-2 opacity-30" size={36}/>
                         <p className="text-sm">Aucun capteur — backend déconnecté ?</p>
                         <p className="text-xs text-slate-600 mt-1 font-mono">GET /api/capteurs</p>
@@ -619,12 +625,13 @@ export default function Dashboard({ user }) {
               {/* ======== VUE ALERTES ======== */}
               {activeNav === 'alertes' && (
                 <div>
-                  <div className="mb-4 flex justify-between items-center">
+                  <div className="mb-4 flex flex-wrap justify-between items-center gap-2">
                     <h2 className="text-sm font-semibold text-white">Journal des alertes ({alertes.length})</h2>
                     <span className="text-xs text-rose-400 font-mono">{alertes.filter(a=>!a.acquittee).length} non acquittées</span>
                   </div>
                   <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
-                    <table className="w-full text-xs">
+                    <div className="overflow-x-auto">
+                    <table className="min-w-[760px] w-full text-xs">
                       <thead>
                         <tr className="bg-slate-900 border-b border-slate-800">
                           <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-semibold">Capteur</th>
@@ -672,6 +679,7 @@ export default function Dashboard({ user }) {
                         )}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -680,7 +688,7 @@ export default function Dashboard({ user }) {
               {activeNav === 'vannes' && (
                 <div>
                   <h2 className="text-sm font-semibold text-white mb-4">Contrôle Électrovannes ({vannes.length})</h2>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-4">
                     {vannes.map(v => (
                       <div key={v.id} className="bg-slate-950 border border-slate-800 rounded-xl p-4">
                         <div className="flex justify-between items-center mb-3">
@@ -727,7 +735,7 @@ export default function Dashboard({ user }) {
                       </div>
                     ))}
                     {vannes.length === 0 && (
-                      <div className="col-span-3 text-center py-16 text-slate-500">
+                      <div className="text-center py-16 text-slate-500 sm:col-span-2 xl:col-span-3">
                         <Sliders className="mx-auto mb-2 opacity-30" size={36}/>
                         <p className="text-sm">Aucune vanne disponible</p>
                       </div>
@@ -740,7 +748,7 @@ export default function Dashboard({ user }) {
               {activeNav === 'zones' && (
                 <div>
                   <h2 className="text-sm font-semibold text-white mb-4">Zones surveillées ({zones.length})</h2>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:gap-4">
                     {zones.map(z => {
                       const capteursZone = capteurs.filter(c => c.zone_id === z.id);
                       const alertesZone  = alertes.filter(a => capteursZone.some(c => c.id === a.capteur_id));
@@ -754,7 +762,7 @@ export default function Dashboard({ user }) {
                             </div>
                           </div>
                           <p className="text-xs text-slate-400 mb-3">{z.description}</p>
-                          <div className="grid grid-cols-3 gap-2 text-[10px]">
+                          <div className="grid grid-cols-1 gap-2 text-[10px] sm:grid-cols-3">
                             <div className="bg-slate-900 border border-slate-800 rounded p-2 text-center">
                               <div className="text-slate-500">Superficie</div>
                               <div className="font-mono text-white font-bold">{z.superficie}m²</div>
@@ -772,7 +780,7 @@ export default function Dashboard({ user }) {
                       );
                     })}
                     {zones.length === 0 && (
-                      <div className="col-span-3 text-center py-16 text-slate-500">
+                      <div className="text-center py-16 text-slate-500 sm:col-span-2 xl:col-span-3">
                         <MapPin className="mx-auto mb-2 opacity-30" size={36}/>
                         <p className="text-sm">Aucune zone — vérifier l'API</p>
                       </div>

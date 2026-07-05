@@ -104,9 +104,9 @@ export default function Login({ onLogin }) {
                 { label: 'Opérateur', email: 'operateur@iut-bandjoun.cm', pw: 'oper123', color: 'text-emerald-400' },
               ].map(acc => (
                 <button key={acc.label} onClick={() => quickFill(acc.email, acc.pw)}
-                  className="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded px-3 py-1.5 text-xs flex justify-between items-center transition">
+                  className="w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded px-3 py-1.5 text-xs flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:items-center transition">
                   <span className={`font-semibold ${acc.color}`}>{acc.label}</span>
-                  <span className="text-slate-500 font-mono">{acc.email}</span>
+                  <span className="text-slate-500 font-mono break-all">{acc.email}</span>
                 </button>
               ))}
             </div>
