@@ -249,7 +249,7 @@ export default function Dashboard({ user }) {
   // RENDER
   // ============================================================
   return (
-    <div className={(theme === 'dark' ? 'dark ' : '') + "flex min-h-screen flex-col bg-slate-50 text-slate-950 dark:bg-slate-900 dark:text-slate-100 font-sans md:h-screen md:flex-row md:overflow-hidden"}>
+    <div className={(theme === 'dark' ? 'dark ' : '') + "flex min-h-screen flex-col bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100 font-sans md:h-screen md:flex-row md:overflow-hidden"}>
 
       {/* ===== SIDEBAR (style SiteKiosk) ===== */}
       <aside className="w-full bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex shrink-0 flex-col md:w-52 md:border-b-0 md:border-r">
@@ -301,7 +301,7 @@ export default function Dashboard({ user }) {
       </aside>
 
       {/* ===== CONTENU PRINCIPAL ===== */}
-      <div className="flex-1 flex min-h-0 flex-col md:overflow-hidden">
+      <div className="flex-1 flex min-h-0 flex-col bg-slate-50 dark:bg-slate-950 md:overflow-hidden">
 
         {/* --- Top bar --- */}
         <header className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-3 py-3 flex shrink-0 flex-col gap-3 sm:px-5 sm:flex-row sm:justify-between sm:items-center">
@@ -355,7 +355,7 @@ export default function Dashboard({ user }) {
         </header>
 
         {/* --- Corps scrollable --- */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4">
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-3 sm:p-4">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <RefreshCw className="animate-spin text-emerald-400" size={32} />
@@ -494,7 +494,7 @@ export default function Dashboard({ user }) {
                             const isWarn = c.derniere_valeur > c.seuil_warning;
                             const isDanger = c.derniere_valeur > c.seuil_danger;
                             return (
-                              <tr key={c.id} className="hover:bg-slate-900/40 transition">
+                              <tr key={c.id} className="hover:bg-slate-100 dark:hover:bg-slate-900/70 transition">
                                 <td className="px-4 py-2.5">
                                   <div className="flex items-center gap-2">
                                     <SensorIcon type={c.type} size={13}
@@ -614,7 +614,7 @@ export default function Dashboard({ user }) {
                             </div>
                           </div>
                           <button onClick={() => handleQrCode(c)}
-                            className="mt-3 w-full bg-slate-100 dark:bg-slate-900 hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[10px] py-2 rounded transition">
+                            className="mt-3 w-full bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[10px] py-2 rounded transition">
                             QR code / fiche capteur
                           </button>
                         </div>
@@ -653,7 +653,7 @@ export default function Dashboard({ user }) {
                       </thead>
                       <tbody className="divide-y divide-slate-800/40">
                         {alertes.map(a => (
-                          <tr key={a.id} className={`hover:bg-slate-900/40 transition ${!a.acquittee ? 'bg-rose-950/5' : ''}`}>
+                          <tr key={a.id} className={`hover:bg-slate-100 dark:hover:bg-slate-900/70 transition ${!a.acquittee ? 'bg-rose-950/5' : ''}`}>
                             <td className="px-4 py-2.5 font-mono text-slate-600 dark:text-slate-400 text-[10px]">{a.capteur_id}</td>
                             <td className="px-3 py-2.5 text-slate-700 dark:text-slate-300 max-w-xs truncate">{a.message || a.niveau}</td>
                             <td className="px-3 py-2.5">
@@ -676,7 +676,7 @@ export default function Dashboard({ user }) {
                                   </button>
                                 )}
                                 <button onClick={() => handleRapportIncident(a)}
-                                  className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-700 text-slate-200 text-[9px] px-2 py-1 rounded transition">
+                                  className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] px-2 py-1 rounded transition">
                                   PDF
                                 </button>
                               </div>
@@ -735,7 +735,7 @@ export default function Dashboard({ user }) {
                               className={`flex-1 border text-[10px] py-1.5 rounded transition disabled:opacity-50 ${
                                 v.mode === mode
                                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                                  : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-white'
+                                  : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
                               }`}>
                               {mode}
                             </button>
