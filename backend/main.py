@@ -88,3 +88,6 @@ async def startup_event():
     generer_tous_qrcodes()
     demarrer_client_thread(gestionnaire)  # ← AJOUTER cette ligne
     print("✅ Tous les services démarrés !")
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
