@@ -11,7 +11,8 @@ from database import get_connexion
 SECRET_KEY = "pfe-detection-fuites-iut-bandjoun-2024-cle-secrete"
 ALGORITHM = "HS256"
 EXPIRATION_MINUTES = 1440
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+DEFAULT_GOOGLE_CLIENT_ID = "430510354808-2v3nmcdu2hi64rgo220le8uala3caftp.apps.googleusercontent.com"
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", DEFAULT_GOOGLE_CLIENT_ID)
 
 # Creer un token JWT
 def creer_token(utilisateur_id: str, email: str, role: str) -> str:
