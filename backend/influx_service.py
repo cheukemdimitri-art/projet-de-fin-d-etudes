@@ -9,7 +9,7 @@ load_dotenv()
 
 URL    = os.getenv("INFLUXDB_URL",    "http://localhost:8086")
 TOKEN  = os.getenv("INFLUXDB_TOKEN",  "")
-ORG    = os.getenv("INFLUXDB_ORG",    "iut-bandjoun")
+ORG    = os.getenv("INFLUXDB_ORG",    "IUT-FV")
 BUCKET = os.getenv("INFLUXDB_BUCKET", "capteur-fuites")
 
 client    = InfluxDBClient(url=URL, token=TOKEN, org=ORG)
