@@ -9,7 +9,7 @@ import {
   Shield, Activity, Bell, MapPin, Droplets, Flame, Thermometer,
   CheckCircle2, AlertTriangle, XCircle, RefreshCw, LogOut,
   Settings, Users, BarChart2, Sliders, Volume2, VolumeX, Download,
-  Wifi, Battery, Clock, Sun, Moon
+  Wifi, Battery, Clock, Sun, Moon, Smartphone
 } from 'lucide-react';
 import { dashboardService, actionService, authService, documentService, WS_BASE_URL } from '../services/api';
 
@@ -65,8 +65,12 @@ const NAV = [
   { id: 'alertes',   label: 'Alertes',     icon: Bell },
   { id: 'vannes',    label: 'Électrovannes', icon: Sliders },
   { id: 'zones',     label: 'Zones',       icon: MapPin },
+  { id: 'android',   label: 'Application', icon: Smartphone },
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
+
+const APK_FILE_NAME = 'PURECONTROL-v1.0-release.apk';
+const APK_DOWNLOAD_URL = `/downloads/${APK_FILE_NAME}`;
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -342,6 +346,10 @@ export default function Dashboard({ user }) {
               className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-emerald-500/60 hover:text-emerald-300 transition">
               <Download size={11} /> Rapport mensuel
             </button>
+            <a href={APK_DOWNLOAD_URL} download={APK_FILE_NAME}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:border-emerald-500/70 hover:bg-emerald-500/15 transition">
+              <Smartphone size={11} /> APK Android
+            </a>
             <button onClick={() => authService.logout()}
               className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-rose-500/60 hover:text-rose-300 transition md:hidden">
               <LogOut size={11} /> Sortir
@@ -794,6 +802,57 @@ export default function Dashboard({ user }) {
                         <p className="text-sm">Aucune zone — vérifier l'API</p>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* ======== VUE APPLICATION ANDROID ======== */}
+              {activeNav === 'android' && (
+                <div className="mx-auto max-w-4xl space-y-4">
+                  <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                    <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+                          <Smartphone className="text-emerald-500 dark:text-emerald-300" size={24} />
+                        </div>
+                        <div>
+                          <h2 className="text-base font-semibold text-slate-950 dark:text-white">PURECONTROL Android</h2>
+                          <p className="mt-1 max-w-xl text-xs leading-5 text-slate-600 dark:text-slate-400">
+                            Version mobile adaptee au projet PURECONTROL pour consulter les capteurs, suivre les alertes et garder le controle terrain depuis un telephone Android.
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-mono">
+                            <span className="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">v1.0 release</span>
+                            <span className="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">Android APK</span>
+                            <span className="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">~20 Mo</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-56">
+                        <a href={APK_DOWNLOAD_URL} download={APK_FILE_NAME}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-500">
+                          <Download size={15} /> Telecharger l'APK
+                        </a>
+                        <a href={APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-500 hover:text-slate-950 dark:border-slate-700 dark:text-slate-400 dark:hover:text-white">
+                          <Smartphone size={14} /> Ouvrir le fichier
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {[
+                      { label: 'Distribution', value: 'Vercel', detail: 'Fichier servi depuis le frontend' },
+                      { label: 'Lien public', value: '/downloads', detail: APK_FILE_NAME },
+                      { label: 'Installation', value: 'Android', detail: 'Autoriser les sources inconnues si demande' },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">{item.label}</div>
+                        <div className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{item.value}</div>
+                        <div className="mt-1 break-words text-[10px] font-mono text-slate-500">{item.detail}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
