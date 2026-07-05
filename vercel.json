@@ -13,7 +13,7 @@
       "destination": "wss://projet-de-fin-d-etudes.onrender.com/ws/:match*"
     },
     {
-      "source": "/:(.*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
