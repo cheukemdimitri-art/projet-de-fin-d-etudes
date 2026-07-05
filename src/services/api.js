@@ -7,8 +7,18 @@
 import axios from 'axios';
 
 // ⚠️ Remplace par l'IP réelle du backend si pas en local
-export const API_BASE_URL = 'http://127.0.0.1:8000';
-export const WS_BASE_URL  = 'ws://127.0.0.1:8000';
+const DEFAULT_API_URL = 'https://projet-de-fin-d-etudes.onrender.com';
+
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_URL
+).replace(/\/$/, '');
+
+export const WS_BASE_URL = (
+  import.meta.env.VITE_WS_BASE_URL ||
+  API_BASE_URL.replace(/^https?:\/\//, API_BASE_URL.startsWith('https') ? 'wss://' : 'ws://')
+).replace(/\/$/, '');
+
+const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -73,6 +83,12 @@ export const dashboardService = {
   getVannes:   ()      => api.get('/api/vannes'),
 };
 
+export const documentService = {
+  rapportMensuelUrl: () => apiUrl('/api/rapports/generer'),
+  rapportIncidentUrl: (id) => apiUrl(`/api/alertes/${id}/rapport`),
+  qrcodeCapteurUrl: (id) => apiUrl(`/api/capteurs/${id}/qrcode`),
+};
+
 // ---- Helpers Actions protégées (JWT requis) ----
 export const actionService = {
   acquitterAlerte: (id, commentaire = '') =>
@@ -82,5 +98,5 @@ export const actionService = {
   ouvrirVanne: (id, zone_id) =>
     api.post(`/api/vannes/${id}/ouvrir`, null, { params: { zone_id } }),
   changerModeVanne: (id, mode) =>
-    api.post(`/api/vannes/${id}/mode`, null, { params: { mode } }),
+    api.post(`/api/vannes/${id}/mode`, null, { params: { nouveau_mode: mode } }),
 };

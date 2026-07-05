@@ -11,7 +11,7 @@ import {
   Settings, Users, BarChart2, Sliders, Volume2, VolumeX, Download,
   Wifi, Battery, Clock
 } from 'lucide-react';
-import { dashboardService, actionService, authService, WS_BASE_URL } from '../services/api';
+import { dashboardService, actionService, authService, documentService, WS_BASE_URL } from '../services/api';
 
 // ---- Icône selon type de capteur (doc §3.2) ----
 function SensorIcon({ type, size = 14, className = '' }) {
@@ -28,8 +28,11 @@ function StatusBadge({ status }) {
     NORMAL:  { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', label: 'Normal' },
     WARNING: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30',   label: 'Warning' },
     DANGER:  { cls: 'bg-rose-500/10 text-rose-400 border-rose-800/40 animate-pulse', label: 'Danger' },
+    CRITIQUE:{ cls: 'bg-red-600/15 text-red-300 border-red-700/50 animate-pulse', label: 'Critique' },
     ACTIF:   { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', label: 'Actif' },
     INACTIF: { cls: 'bg-slate-700/50 text-slate-400 border-slate-700', label: 'Inactif' },
+    OUVERTE: { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', label: 'Ouverte' },
+    FERMEE:  { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', label: 'Fermee' },
   };
   const s = map[status] || map['NORMAL'];
   return (
@@ -64,6 +67,39 @@ const NAV = [
   { id: 'zones',     label: 'Zones',       icon: MapPin },
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
+
+const formatDate = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
+const formatValeur = (value, digits = 1) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '0.00';
+  return numeric.toFixed(digits);
+};
+
+const getCapteurStatus = (capteur) => {
+  if (!capteur.actif) return 'INACTIF';
+  const valeur = Number(capteur.derniere_valeur || 0);
+  if (valeur >= Number(capteur.seuil_critique || Infinity)) return 'CRITIQUE';
+  if (valeur >= Number(capteur.seuil_danger || Infinity)) return 'DANGER';
+  if (valeur >= Number(capteur.seuil_warning || Infinity)) return 'WARNING';
+  return 'NORMAL';
+};
+
+const getLiveValueForCapteur = (capteur, data) => {
+  if (data.capteur_id === capteur.id && data.valeur !== undefined) return data.valeur;
+  if (data.capteur_id === capteur.id && data.gaz_ppm !== undefined) return data.gaz_ppm;
+  if (capteur.id === 'CAP_A1' && data.gaz_ppm !== undefined) return data.gaz_ppm;
+  if (capteur.id === 'CAP_B2' && data.fuite_sol !== undefined) return data.fuite_sol ? 1 : 0;
+  return undefined;
+};
+
+const openBackendFile = (url) => {
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
 
 // ============================================================
 export default function Dashboard({ user }) {
@@ -115,13 +151,12 @@ export default function Dashboard({ user }) {
           const data = JSON.parse(e.data);
           setLiveData(data);
           // Mettre à jour la valeur live d'un capteur si disponible
-          if (data.capteur_id && data.valeur !== undefined) {
-            setCapteurs(prev => prev.map(c =>
-              c.id === data.capteur_id ? { ...c, derniere_valeur: data.valeur } : c
-            ));
-          }
+          setCapteurs(prev => prev.map(c => {
+            const liveValue = getLiveValueForCapteur(c, data);
+            return liveValue !== undefined ? { ...c, derniere_valeur: Number(liveValue) } : c;
+          }));
           // Son d'alerte si DANGER
-          if (data.statut === 'DANGER' && soundOn) playAlertSound();
+          if (['DANGER', 'CRITIQUE'].includes(data.niveau) && soundOn) playAlertSound();
           setLastUpdate(new Date().toLocaleTimeString());
         } catch {}
       };
@@ -177,8 +212,33 @@ export default function Dashboard({ user }) {
   };
 
   // ---- Statut global → couleur ----
+  const handleModeVanne = async (vanne, mode) => {
+    if (vanneLoading) return;
+    setVanneLoading(vanne.id);
+    try {
+      await actionService.changerModeVanne(vanne.id, mode);
+      await loadAll();
+    } catch (e) {
+      alert('Erreur : ' + (e.response?.data?.detail || 'Mode non modifie'));
+    } finally {
+      setVanneLoading(null);
+    }
+  };
+
+  const handleRapportMensuel = () => {
+    openBackendFile(documentService.rapportMensuelUrl());
+  };
+
+  const handleRapportIncident = (alerte) => {
+    openBackendFile(documentService.rapportIncidentUrl(alerte.id));
+  };
+
+  const handleQrCode = (capteur) => {
+    openBackendFile(documentService.qrcodeCapteurUrl(capteur.id));
+  };
+
   const globalStatus = stats?.statut_global || 'NORMAL';
-  const globalColor = { NORMAL: '#10b981', WARNING: '#f59e0b', DANGER: '#ef4444' }[globalStatus] || '#10b981';
+  const globalColor = { NORMAL: '#10b981', WARNING: '#f59e0b', DANGER: '#ef4444', CRITIQUE: '#dc2626' }[globalStatus] || '#10b981';
 
   // ============================================================
   // RENDER
@@ -268,6 +328,10 @@ export default function Dashboard({ user }) {
             <button onClick={loadAll}
               className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-slate-700 text-slate-400 hover:border-slate-500 transition">
               <RefreshCw size={11} /> Actualiser
+            </button>
+            <button onClick={handleRapportMensuel}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-slate-700 text-slate-400 hover:border-emerald-500/60 hover:text-emerald-300 transition">
+              <Download size={11} /> Rapport mensuel
             </button>
             {/* Statut global */}
             <span className="px-2.5 py-1 rounded text-[10px] font-bold font-mono border"
@@ -373,7 +437,7 @@ export default function Dashboard({ user }) {
                           <div key={a.id} className="bg-rose-950/20 border border-rose-900/40 rounded px-3 py-2">
                             <div className="flex justify-between items-start gap-2">
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs text-rose-300 font-medium truncate">{a.message || a.type}</div>
+                                <div className="text-xs text-rose-300 font-medium truncate">{a.message || a.niveau}</div>
                                 <div className="text-[10px] text-slate-500 font-mono mt-0.5">{a.capteur_id}</div>
                               </div>
                               <button onClick={() => handleAcquitter(a)} disabled={acquitLoading === a.id}
@@ -465,7 +529,7 @@ export default function Dashboard({ user }) {
                                 <div className="text-xs text-white font-medium">{v.nom || v.id}</div>
                                 <div className="text-[10px] text-slate-500 font-mono">{v.zone_id}</div>
                               </div>
-                              <StatusBadge status={v.etat === 'FERMEE' ? 'WARNING' : 'NORMAL'} />
+                              <StatusBadge status={v.statut} />
                             </div>
                             <div className="flex gap-1.5">
                               <button onClick={() => handleVanne(v, 'fermer')} disabled={vanneLoading === v.id}
@@ -495,8 +559,9 @@ export default function Dashboard({ user }) {
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {capteurs.map(c => {
-                      const isDanger = c.derniere_valeur > c.seuil_danger;
-                      const isWarn   = c.derniere_valeur > c.seuil_warning;
+                      const capteurStatus = getCapteurStatus(c);
+                      const isDanger = ['DANGER', 'CRITIQUE'].includes(capteurStatus);
+                      const isWarn   = capteurStatus === 'WARNING';
                       return (
                         <div key={c.id} className={`bg-slate-950 border rounded-xl p-4 transition hover:border-slate-600 ${
                           isDanger ? 'border-rose-800/50 bg-rose-950/10' :
@@ -511,13 +576,13 @@ export default function Dashboard({ user }) {
                                 <div className="text-[10px] text-slate-500 font-mono">{c.id}</div>
                               </div>
                             </div>
-                            <StatusBadge status={isDanger ? 'DANGER' : isWarn ? 'WARNING' : 'NORMAL'} />
+                            <StatusBadge status={capteurStatus} />
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-[10px]">
                             <div className="bg-slate-900 rounded p-2 border border-slate-800">
                               <div className="text-slate-500 mb-0.5">Valeur actuelle</div>
                               <div className={`font-mono font-bold ${isDanger?'text-rose-400':isWarn?'text-amber-400':'text-white'}`}>
-                                {c.derniere_valeur?.toFixed ? c.derniere_valeur.toFixed(2) : '0.00'}
+                                {formatValeur(c.derniere_valeur, 2)}
                               </div>
                             </div>
                             <div className="bg-slate-900 rounded p-2 border border-slate-800">
@@ -533,6 +598,10 @@ export default function Dashboard({ user }) {
                               <div className="font-mono text-rose-400">{c.seuil_danger}</div>
                             </div>
                           </div>
+                          <button onClick={() => handleQrCode(c)}
+                            className="mt-3 w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] py-2 rounded transition">
+                            QR code / fiche capteur
+                          </button>
                         </div>
                       );
                     })}
@@ -560,7 +629,7 @@ export default function Dashboard({ user }) {
                         <tr className="bg-slate-900 border-b border-slate-800">
                           <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-semibold">Capteur</th>
                           <th className="text-left px-3 py-3 text-[10px] text-slate-500 uppercase font-semibold">Message</th>
-                          <th className="text-left px-3 py-3 text-[10px] text-slate-500 uppercase font-semibold">Type</th>
+                          <th className="text-left px-3 py-3 text-[10px] text-slate-500 uppercase font-semibold">Niveau</th>
                           <th className="text-left px-3 py-3 text-[10px] text-slate-500 uppercase font-semibold">Date</th>
                           <th className="text-left px-3 py-3 text-[10px] text-slate-500 uppercase font-semibold">Statut</th>
                           <th className="text-center px-3 py-3 text-[10px] text-slate-500 uppercase font-semibold">Action</th>
@@ -570,12 +639,12 @@ export default function Dashboard({ user }) {
                         {alertes.map(a => (
                           <tr key={a.id} className={`hover:bg-slate-900/40 transition ${!a.acquittee ? 'bg-rose-950/5' : ''}`}>
                             <td className="px-4 py-2.5 font-mono text-slate-400 text-[10px]">{a.capteur_id}</td>
-                            <td className="px-3 py-2.5 text-slate-300 max-w-xs truncate">{a.message || a.type}</td>
+                            <td className="px-3 py-2.5 text-slate-300 max-w-xs truncate">{a.message || a.niveau}</td>
                             <td className="px-3 py-2.5">
-                              <span className="font-mono text-[10px] text-amber-400">{a.type}</span>
+                              <StatusBadge status={a.niveau} />
                             </td>
                             <td className="px-3 py-2.5 text-slate-500 font-mono text-[10px]">
-                              {a.timestamp ? new Date(a.timestamp).toLocaleString() : '—'}
+                              {formatDate(a.date_detection)}
                             </td>
                             <td className="px-3 py-2.5">
                               {a.acquittee
@@ -583,12 +652,18 @@ export default function Dashboard({ user }) {
                                 : <span className="text-[10px] text-rose-400 animate-pulse font-mono">● Actif</span>}
                             </td>
                             <td className="px-3 py-2.5 text-center">
-                              {!a.acquittee && (
-                                <button onClick={() => handleAcquitter(a)} disabled={acquitLoading === a.id}
-                                  className="bg-rose-700 hover:bg-rose-600 text-white text-[9px] px-3 py-1 rounded transition disabled:opacity-50">
-                                  {acquitLoading === a.id ? '...' : 'Acquitter'}
+                              <div className="flex justify-center gap-1.5">
+                                {!a.acquittee && (
+                                  <button onClick={() => handleAcquitter(a)} disabled={acquitLoading === a.id}
+                                    className="bg-rose-700 hover:bg-rose-600 text-white text-[9px] px-3 py-1 rounded transition disabled:opacity-50">
+                                    {acquitLoading === a.id ? '...' : 'Acquitter'}
+                                  </button>
+                                )}
+                                <button onClick={() => handleRapportIncident(a)}
+                                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[9px] px-2 py-1 rounded transition">
+                                  PDF
                                 </button>
-                              )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -613,7 +688,7 @@ export default function Dashboard({ user }) {
                             <div className="text-sm font-semibold text-white">{v.nom || v.id}</div>
                             <div className="text-[10px] text-slate-500 font-mono">{v.id} — {v.zone_id}</div>
                           </div>
-                          <StatusBadge status={v.etat === 'FERMEE' ? 'WARNING' : 'NORMAL'} />
+                          <StatusBadge status={v.statut} />
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-[10px] mb-3">
                           <div className="bg-slate-900 rounded p-2 border border-slate-800">
@@ -622,8 +697,8 @@ export default function Dashboard({ user }) {
                           </div>
                           <div className="bg-slate-900 rounded p-2 border border-slate-800">
                             <div className="text-slate-500 mb-0.5">État</div>
-                            <div className={`font-mono font-bold ${v.etat === 'FERMEE' ? 'text-amber-400' : 'text-emerald-400'}`}>
-                              {v.etat || '—'}
+                            <div className={`font-mono font-bold ${v.statut === 'FERMEE' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {v.statut || '—'}
                             </div>
                           </div>
                         </div>
@@ -636,6 +711,18 @@ export default function Dashboard({ user }) {
                             className="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs py-2 rounded transition font-semibold disabled:opacity-50">
                             🟢 Ouvrir
                           </button>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          {['AUTO', 'MANUEL'].map(mode => (
+                            <button key={mode} onClick={() => handleModeVanne(v, mode)} disabled={vanneLoading===v.id || v.mode === mode}
+                              className={`flex-1 border text-[10px] py-1.5 rounded transition disabled:opacity-50 ${
+                                v.mode === mode
+                                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                                  : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white'
+                              }`}>
+                              {mode}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     ))}
