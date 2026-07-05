@@ -32,11 +32,7 @@
       "destination": "wss://projet-de-fin-d-etudes.onrender.com/ws/:match*"
     },
     {
-      "source": "/downloads/:path*",
-      "destination": "/downloads/:path*"
-    },
-    {
-      "source": "/:path*",
+      "source": "/((?!downloads/).*)",
       "destination": "/index.html"
     }
   ]
