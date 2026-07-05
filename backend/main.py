@@ -12,6 +12,7 @@ from scheduler_service import demarrer_planificateur
 from qrcode_service import generer_tous_qrcodes
 import json
 from mqtt_client import demarrer_client_thread 
+from fastapi import Response
 # ── Créer les tables ──────────────────────────────────────────────────────────
 Base.metadata.create_all(bind=engine)
 
@@ -88,6 +89,6 @@ async def startup_event():
     generer_tous_qrcodes()
     demarrer_client_thread(gestionnaire)  # ← AJOUTER cette ligne
     print("✅ Tous les services démarrés !")
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "healthy"}
