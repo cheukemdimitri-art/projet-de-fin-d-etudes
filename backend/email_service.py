@@ -1,5 +1,6 @@
 # backend/email_service.py
 import os
+import re
 from html import escape
 from dotenv import load_dotenv
 from sendgrid import SendGridAPIClient
@@ -12,10 +13,15 @@ SENDGRID_KEY = os.getenv("SENDGRID_API_KEY", "")
 EMAIL_FROM = os.getenv("EMAIL_FROM", "")
 EMAIL_TO = os.getenv("EMAIL_TO", "")
 EMAIL_ROLES = os.getenv("EMAIL_ALERT_ROLES", "ADMIN,OPERATEUR")
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _split_emails(value):
     return [email.strip() for email in value.replace(";", ",").split(",") if email.strip()]
+
+
+def _email_valide(email):
+    return bool(EMAIL_REGEX.match(email or ""))
 
 
 def _destinataires_utilisateurs():
@@ -51,7 +57,10 @@ def _destinataires_utilisateurs():
 def obtenir_destinataires_email():
     emails = _split_emails(EMAIL_TO)
     emails.extend(_destinataires_utilisateurs())
-    return sorted(set(email for email in emails if "@" in email))
+    invalides = sorted(set(email for email in emails if email and not _email_valide(email)))
+    if invalides:
+        print(f"Destinataires email ignores car invalides : {', '.join(invalides)}")
+    return sorted(set(email for email in emails if _email_valide(email)))
 
 
 def envoyer_email_alerte(niveau, message, capteur_id, alerte_id=None):
@@ -60,6 +69,9 @@ def envoyer_email_alerte(niveau, message, capteur_id, alerte_id=None):
         return False
     if not EMAIL_FROM:
         print("EMAIL_FROM manquant dans .env")
+        return False
+    if not _email_valide(EMAIL_FROM):
+        print(f"EMAIL_FROM invalide : {EMAIL_FROM}")
         return False
 
     destinataires = obtenir_destinataires_email()
@@ -113,4 +125,6 @@ def envoyer_email_alerte(niveau, message, capteur_id, alerte_id=None):
 
     except Exception as e:
         print(f"Erreur envoi email : {e}")
+        if hasattr(e, "body"):
+            print(f"Detail SendGrid : {e.body}")
         return False
