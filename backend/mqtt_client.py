@@ -7,7 +7,6 @@ import threading
 from dotenv import load_dotenv
 from influx_service import ecrire_mesure
 from alert_service import verifier_et_alerter
-from email_service import envoyer_email_alerte
 from mesure_service import enregistrer_mesure
 from audit_service import journaliser
 
@@ -74,14 +73,14 @@ def on_message(client, userdata, msg):
                 "SYSTEME",
                 {"niveau": niveau, "alertes": alertes},
             )
-
-        for alerte in alertes:
-            if alerte["niveau"] in ["WARNING", "DANGER", "CRITIQUE"]:
-                envoyer_email_alerte(
-                    alerte["niveau"],
-                    f"Alerte {alerte['niveau']} capteur {alerte['capteur_id']}",
-                    alerte["capteur_id"]
-                )
+            if gestionnaire_ws:
+                import asyncio
+                asyncio.run(gestionnaire_ws.diffuser({
+                    "type": "alerte",
+                    "source": "MQTT",
+                    "alertes": alertes,
+                    "niveau": max((a.get("niveau", "NORMAL") for a in alertes), key=lambda n: ["NORMAL", "WARNING", "DANGER", "CRITIQUE"].index(n) if n in ["NORMAL", "WARNING", "DANGER", "CRITIQUE"] else 0),
+                }))
 
         print("-" * 40)
 

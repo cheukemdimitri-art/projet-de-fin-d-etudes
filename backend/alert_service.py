@@ -4,6 +4,7 @@ from datetime import datetime
 from database import get_connexion
 from vanne_service import fermer_vanne_automatique
 from audit_service import journaliser
+from email_service import envoyer_email_alerte
 
 # ── Évaluer le niveau d'alerte ────────────────────────────────────────────────
 def evaluer_niveau(valeur, seuil_warning, seuil_danger, seuil_critique):
@@ -35,7 +36,7 @@ def creer_alerte(capteur_id, niveau, message):
             print(f"⚠️ Alerte déjà active pour {capteur_id}")
             cur.close()
             conn.close()
-            return existante[0]
+            return None
 
         # Créer nouvelle alerte
         alerte_id = str(uuid.uuid4())
@@ -48,6 +49,7 @@ def creer_alerte(capteur_id, niveau, message):
         cur.close()
         print(f"🚨 Alerte créée : {niveau} pour {capteur_id}")
         journaliser("CREER_ALERTE", "capteur", capteur_id, "SYSTEME", {"alerte_id": alerte_id, "niveau": niveau})
+        envoyer_email_alerte(niveau, message, capteur_id, alerte_id=alerte_id)
         return alerte_id
 
     except Exception as e:

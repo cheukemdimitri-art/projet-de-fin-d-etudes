@@ -55,6 +55,13 @@ async def simuler_mesure(
             "niveau": donnees.niveau,
             "source": "SIMULATION",
         })
+        if alertes:
+            await gestionnaire.diffuser({
+                "type": "alerte",
+                "source": "SIMULATION",
+                "alertes": alertes,
+                "niveau": donnees.niveau,
+            })
     except Exception as e:
         print(f"Simulation WebSocket non diffusee : {e}")
 
