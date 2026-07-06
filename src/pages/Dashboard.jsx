@@ -12,6 +12,7 @@ import {
   Wifi, Battery, Clock, Sun, Moon, Smartphone, History, Wrench, PlayCircle
 } from 'lucide-react';
 import { dashboardService, actionService, authService, documentService, WS_BASE_URL } from '../services/api';
+import { notificationService } from '../services/notifications';
 
 // ---- Icône selon type de capteur (doc §3.2) ----
 function SensorIcon({ type, size = 14, className = '' }) {
@@ -71,7 +72,7 @@ const NAV = [
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
 
-const APK_FILE_NAME = 'PURECONTROL-v1.2-release.apk';
+const APK_FILE_NAME = 'PURECONTROL-v1.3-release.apk';
 const APK_DOWNLOAD_URL = `/downloads/${APK_FILE_NAME}`;
 
 const formatDate = (value) => {
@@ -118,6 +119,7 @@ export default function Dashboard({ user }) {
   const [loading, setLoading]         = useState(true);
   const [liveData, setLiveData]       = useState(null);
   const [soundOn, setSoundOn]         = useState(false);
+  const [notificationOn, setNotificationOn] = useState(false);
   const [acquitLoading, setAcquitLoading] = useState(null);
   const [vanneLoading, setVanneLoading]   = useState(null);
   const [lastUpdate, setLastUpdate]   = useState('—');
@@ -185,6 +187,10 @@ export default function Dashboard({ user }) {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   useEffect(() => {
+    notificationService.initialize().then(setNotificationOn);
+  }, []);
+
+  useEffect(() => {
     if (activeNav === 'maintenance') loadMaintenance();
     if (activeNav === 'audit') loadAudit();
     if (activeNav === 'users') loadUsers();
@@ -210,6 +216,9 @@ export default function Dashboard({ user }) {
           }));
           // Son d'alerte si DANGER
           if (['DANGER', 'CRITIQUE'].includes(data.niveau) && soundOn) playAlertSound();
+          if (['alerte', 'mesure'].includes(data.type) || ['WARNING', 'DANGER', 'CRITIQUE'].includes(data.niveau)) {
+            notificationService.notifyAlert(data).catch(() => {});
+          }
           setLastUpdate(new Date().toLocaleTimeString());
         } catch {}
       };
@@ -233,6 +242,16 @@ export default function Dashboard({ user }) {
         o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.22);
       });
     } catch {}
+  };
+
+  const handleNotifications = async () => {
+    try {
+      const enabled = await notificationService.enable();
+      setNotificationOn(enabled);
+      if (!enabled) alert('Notifications non autorisees sur cet appareil.');
+    } catch {
+      alert('Impossible d activer les notifications sur cet appareil.');
+    }
   };
 
   // ---- Acquitter alerte ----
@@ -438,6 +457,13 @@ export default function Dashboard({ user }) {
               }`}>
               {soundOn ? <Volume2 size={11}/> : <VolumeX size={11}/>}
               {soundOn ? 'Son ON' : 'Son OFF'}
+            </button>
+            <button onClick={handleNotifications}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border transition ${
+                notificationOn ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+              }`}>
+              <Bell size={11}/>
+              {notificationOn ? 'Notif ON' : 'Notif OFF'}
             </button>
             {/* Refresh */}
             <button onClick={loadAll}
