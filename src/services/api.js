@@ -85,9 +85,13 @@ export const dashboardService = {
   getZones:    ()      => api.get('/api/zones'),
   getCapteurs: ()      => api.get('/api/capteurs'),
   getCapteur:  (id)    => api.get(`/api/capteurs/${id}`),
+  getHistoriqueCapteur: (id, heures = 24) => api.get(`/api/capteurs/${id}/historique`, { params: { heures } }),
+  getMaintenance: (minutes = 10) => api.get('/api/capteurs/maintenance', { params: { minutes } }),
   getAlertes:  ()      => api.get('/api/alertes'),
   getAlertesActives: () => api.get('/api/alertes/actives'),
   getVannes:   ()      => api.get('/api/vannes'),
+  getAudit: (limite = 100) => api.get('/api/audit', { params: { limite } }),
+  getUsers: () => api.get('/api/users'),
 };
 
 export const documentService = {
@@ -106,4 +110,10 @@ export const actionService = {
     api.post(`/api/vannes/${id}/ouvrir`, null, { params: { zone_id } }),
   changerModeVanne: (id, mode) =>
     api.post(`/api/vannes/${id}/mode`, null, { params: { nouveau_mode: mode } }),
+  modifierSeuilsCapteur: (id, seuils) =>
+    api.patch(`/api/capteurs/${id}/seuils`, seuils),
+  simulerMesure: (data) =>
+    api.post('/api/simulation/mesure', data),
+  modifierUtilisateur: (id, data) =>
+    api.patch(`/api/users/${id}`, data),
 };

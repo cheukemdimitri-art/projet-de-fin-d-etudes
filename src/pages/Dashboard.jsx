@@ -9,7 +9,7 @@ import {
   Shield, Activity, Bell, MapPin, Droplets, Flame, Thermometer,
   CheckCircle2, AlertTriangle, XCircle, RefreshCw, LogOut,
   Settings, Users, BarChart2, Sliders, Volume2, VolumeX, Download,
-  Wifi, Battery, Clock, Sun, Moon, Smartphone
+  Wifi, Battery, Clock, Sun, Moon, Smartphone, History, Wrench, PlayCircle
 } from 'lucide-react';
 import { dashboardService, actionService, authService, documentService, WS_BASE_URL } from '../services/api';
 
@@ -65,6 +65,8 @@ const NAV = [
   { id: 'alertes',   label: 'Alertes',     icon: Bell },
   { id: 'vannes',    label: 'Électrovannes', icon: Sliders },
   { id: 'zones',     label: 'Zones',       icon: MapPin },
+  { id: 'maintenance', label: 'Maintenance', icon: Wrench },
+  { id: 'audit',     label: 'Audit',       icon: History },
   { id: 'android',   label: 'Application', icon: Smartphone },
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
@@ -119,6 +121,13 @@ export default function Dashboard({ user }) {
   const [acquitLoading, setAcquitLoading] = useState(null);
   const [vanneLoading, setVanneLoading]   = useState(null);
   const [lastUpdate, setLastUpdate]   = useState('—');
+  const [maintenance, setMaintenance] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [historyCapteur, setHistoryCapteur] = useState(null);
+  const [historyPoints, setHistoryPoints] = useState([]);
+  const [seuilLoading, setSeuilLoading] = useState(null);
+  const [simulationLoading, setSimulationLoading] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('purecontrol_theme') || 'dark');
 
   // ---- Chargement initial ----
@@ -144,7 +153,42 @@ export default function Dashboard({ user }) {
     }
   }, []);
 
+  const loadMaintenance = useCallback(async () => {
+    try {
+      const res = await dashboardService.getMaintenance(10);
+      setMaintenance(res.data.capteurs_muets || []);
+    } catch (e) {
+      console.error('Erreur maintenance:', e);
+    }
+  }, []);
+
+  const loadAudit = useCallback(async () => {
+    try {
+      const res = await dashboardService.getAudit(100);
+      setAuditLogs(res.data.logs || []);
+    } catch (e) {
+      console.error('Erreur audit:', e);
+      setAuditLogs([]);
+    }
+  }, []);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const res = await dashboardService.getUsers();
+      setUsers(res.data.users || []);
+    } catch (e) {
+      console.error('Erreur users:', e);
+      setUsers([]);
+    }
+  }, []);
+
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  useEffect(() => {
+    if (activeNav === 'maintenance') loadMaintenance();
+    if (activeNav === 'audit') loadAudit();
+    if (activeNav === 'users') loadUsers();
+  }, [activeNav, loadAudit, loadMaintenance, loadUsers]);
 
   useEffect(() => {
     localStorage.setItem('purecontrol_theme', theme);
@@ -246,6 +290,68 @@ export default function Dashboard({ user }) {
     openBackendFile(documentService.qrcodeCapteurUrl(capteur.id));
   };
 
+  const handleHistorique = async (capteur) => {
+    setHistoryCapteur(capteur);
+    try {
+      const res = await dashboardService.getHistoriqueCapteur(capteur.id, 24);
+      setHistoryPoints(res.data.points || []);
+    } catch (e) {
+      alert('Historique indisponible pour ce capteur.');
+      setHistoryPoints([]);
+    }
+  };
+
+  const handleModifierSeuils = async (capteur) => {
+    const warning = Number(prompt('Seuil WARNING', capteur.seuil_warning));
+    const danger = Number(prompt('Seuil DANGER', capteur.seuil_danger));
+    const critique = Number(prompt('Seuil CRITIQUE', capteur.seuil_critique || capteur.seuil_danger + 1000));
+    if (![warning, danger, critique].every(Number.isFinite)) return;
+    setSeuilLoading(capteur.id);
+    try {
+      await actionService.modifierSeuilsCapteur(capteur.id, {
+        seuil_warning: warning,
+        seuil_danger: danger,
+        seuil_critique: critique,
+      });
+      await loadAll();
+    } catch (e) {
+      alert('Erreur seuils : ' + (e.response?.data?.detail || 'operation impossible'));
+    } finally {
+      setSeuilLoading(null);
+    }
+  };
+
+  const handleSimulation = async () => {
+    setSimulationLoading(true);
+    try {
+      await actionService.simulerMesure({
+        capteur_id: 'CAP_A1',
+        gaz_ppm: 3200,
+        temp_c: 31,
+        hum: 58,
+        fuite_sol: false,
+        niveau: 'DANGER',
+      });
+      await loadAll();
+      await loadAudit();
+      alert('Incident simule : une mesure DANGER a ete envoyee.');
+    } catch (e) {
+      alert('Simulation impossible : ' + (e.response?.data?.detail || 'token requis'));
+    } finally {
+      setSimulationLoading(false);
+    }
+  };
+
+  const handleUserPatch = async (targetUser, patch) => {
+    try {
+      await actionService.modifierUtilisateur(targetUser.id, patch);
+      await loadUsers();
+      await loadAudit();
+    } catch (e) {
+      alert('Modification utilisateur impossible : ' + (e.response?.data?.detail || 'role ADMIN requis'));
+    }
+  };
+
   const globalStatus = stats?.statut_global || 'NORMAL';
   const globalColor = { NORMAL: '#10b981', WARNING: '#f59e0b', DANGER: '#ef4444', CRITIQUE: '#dc2626' }[globalStatus] || '#10b981';
 
@@ -345,6 +451,10 @@ export default function Dashboard({ user }) {
             <button onClick={handleRapportMensuel}
               className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-emerald-500/60 hover:text-emerald-300 transition">
               <Download size={11} /> Rapport mensuel
+            </button>
+            <button onClick={handleSimulation} disabled={simulationLoading}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-300 hover:border-amber-500/70 transition disabled:opacity-50">
+              <PlayCircle size={11} /> Simulation
             </button>
             <a href={APK_DOWNLOAD_URL} download={APK_FILE_NAME}
               className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:border-emerald-500/70 hover:bg-emerald-500/15 transition">
@@ -621,10 +731,20 @@ export default function Dashboard({ user }) {
                               <div className="font-mono text-rose-400">{c.seuil_danger}</div>
                             </div>
                           </div>
-                          <button onClick={() => handleQrCode(c)}
-                            className="mt-3 w-full bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[10px] py-2 rounded transition">
-                            QR code / fiche capteur
-                          </button>
+                          <div className="mt-3 grid grid-cols-3 gap-1.5">
+                            <button onClick={() => handleQrCode(c)}
+                              className="bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[10px] py-2 rounded transition">
+                              QR
+                            </button>
+                            <button onClick={() => handleHistorique(c)}
+                              className="bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/30 text-blue-500 dark:text-blue-300 text-[10px] py-2 rounded transition">
+                              Historique
+                            </button>
+                            <button onClick={() => handleModifierSeuils(c)} disabled={seuilLoading === c.id}
+                              className="bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-[10px] py-2 rounded transition disabled:opacity-50">
+                              Seuils
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -636,6 +756,34 @@ export default function Dashboard({ user }) {
                       </div>
                     )}
                   </div>
+                  {historyCapteur && (
+                    <div className="mt-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                          Historique 24h - {historyCapteur.nom}
+                        </h3>
+                        <button onClick={() => { setHistoryCapteur(null); setHistoryPoints([]); }}
+                          className="text-[10px] text-slate-500 hover:text-slate-950 dark:hover:text-white">
+                          Fermer
+                        </button>
+                      </div>
+                      <div className="flex h-40 items-end gap-1 border-b border-slate-200 dark:border-slate-800 px-1">
+                        {historyPoints.length === 0 && (
+                          <div className="w-full pb-10 text-center text-xs text-slate-500">Aucune mesure historique</div>
+                        )}
+                        {historyPoints.slice(-80).map((point, idx) => {
+                          const value = Number(point.gaz_ppm || point.temp_c || (point.fuite_sol ? 1 : 0));
+                          const max = Math.max(...historyPoints.map(p => Number(p.gaz_ppm || p.temp_c || (p.fuite_sol ? 1 : 0))), 1);
+                          return (
+                            <div key={idx} title={`${point.date_mesure} - ${value}`}
+                              className="flex-1 rounded-t bg-emerald-500/70 min-w-[3px]"
+                              style={{ height: `${Math.max(4, (value / max) * 100)}%` }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -806,6 +954,98 @@ export default function Dashboard({ user }) {
                 </div>
               )}
 
+              {/* ======== VUE MAINTENANCE ======== */}
+              {activeNav === 'maintenance' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Capteurs muets</div>
+                      <div className="mt-1 text-2xl font-bold text-amber-500">{maintenance.length}</div>
+                      <div className="text-[10px] text-slate-500">Sans mesure depuis 10 min</div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Vannes manuel</div>
+                      <div className="mt-1 text-2xl font-bold text-blue-500">{vannes.filter(v => v.mode === 'MANUEL').length}</div>
+                      <div className="text-[10px] text-slate-500">Automatisme suspendu</div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Simulation</div>
+                      <button onClick={handleSimulation} disabled={simulationLoading}
+                        className="mt-2 inline-flex items-center gap-2 rounded bg-amber-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                        <PlayCircle size={14} /> Lancer incident
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                    <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+                      <h2 className="text-sm font-semibold text-slate-950 dark:text-white">Capteurs a verifier</h2>
+                      <button onClick={loadMaintenance} className="text-[10px] text-slate-500 hover:text-emerald-400">Recharger</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-[620px] w-full text-xs">
+                        <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-[10px] uppercase">Capteur</th>
+                            <th className="px-3 py-3 text-left text-[10px] uppercase">Zone</th>
+                            <th className="px-3 py-3 text-left text-[10px] uppercase">Type</th>
+                            <th className="px-3 py-3 text-left text-[10px] uppercase">Derniere mesure</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                          {maintenance.map(c => (
+                            <tr key={c.id} className="hover:bg-slate-100 dark:hover:bg-slate-900">
+                              <td className="px-4 py-2.5 font-mono">{c.id} - {c.nom}</td>
+                              <td className="px-3 py-2.5">{c.zone_id}</td>
+                              <td className="px-3 py-2.5">{c.type}</td>
+                              <td className="px-3 py-2.5 text-slate-500">{c.derniere_mesure || 'Jamais'}</td>
+                            </tr>
+                          ))}
+                          {maintenance.length === 0 && (
+                            <tr><td colSpan={4} className="py-8 text-center text-slate-500">Aucun capteur muet detecte</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ======== VUE AUDIT ======== */}
+              {activeNav === 'audit' && (
+                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                  <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-slate-950 dark:text-white">Journal d'audit</h2>
+                    <button onClick={loadAudit} className="text-[10px] text-slate-500 hover:text-emerald-400">Recharger</button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[760px] w-full text-xs">
+                      <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-[10px] uppercase">Date</th>
+                          <th className="px-3 py-3 text-left text-[10px] uppercase">Utilisateur</th>
+                          <th className="px-3 py-3 text-left text-[10px] uppercase">Action</th>
+                          <th className="px-3 py-3 text-left text-[10px] uppercase">Cible</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                        {auditLogs.map(log => (
+                          <tr key={log.id} className="hover:bg-slate-100 dark:hover:bg-slate-900">
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-slate-500">{formatDate(log.date_action)}</td>
+                            <td className="px-3 py-2.5">{log.utilisateur}</td>
+                            <td className="px-3 py-2.5 font-semibold text-emerald-500">{log.action}</td>
+                            <td className="px-3 py-2.5 font-mono text-[10px]">{log.cible_type}:{log.cible_id}</td>
+                          </tr>
+                        ))}
+                        {auditLogs.length === 0 && (
+                          <tr><td colSpan={4} className="py-8 text-center text-slate-500">Aucun audit visible ou role ADMIN requis</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* ======== VUE APPLICATION ANDROID ======== */}
               {activeNav === 'android' && (
                 <div className="mx-auto max-w-4xl space-y-4">
@@ -857,8 +1097,63 @@ export default function Dashboard({ user }) {
                 </div>
               )}
 
-              {/* ======== VUE USERS (placeholder) ======== */}
+              {/* ======== VUE USERS ======== */}
               {activeNav === 'users' && (
+                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                  <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-950 dark:text-white">Utilisateurs</h2>
+                      <p className="text-[10px] text-slate-500">Role connecte : {user?.role}</p>
+                    </div>
+                    <button onClick={loadUsers} className="text-[10px] text-slate-500 hover:text-emerald-400">Recharger</button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[760px] w-full text-xs">
+                      <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-[10px] uppercase">Nom</th>
+                          <th className="px-3 py-3 text-left text-[10px] uppercase">Email</th>
+                          <th className="px-3 py-3 text-left text-[10px] uppercase">Role</th>
+                          <th className="px-3 py-3 text-left text-[10px] uppercase">Statut</th>
+                          <th className="px-3 py-3 text-center text-[10px] uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                        {users.map(u => (
+                          <tr key={u.id} className="hover:bg-slate-100 dark:hover:bg-slate-900">
+                            <td className="px-4 py-2.5 font-semibold">{u.nom}</td>
+                            <td className="px-3 py-2.5">{u.email}</td>
+                            <td className="px-3 py-2.5">
+                              <select value={u.role} onChange={(e) => handleUserPatch(u, { role: e.target.value })}
+                                className="rounded border border-slate-300 bg-white px-2 py-1 text-[10px] dark:border-slate-700 dark:bg-slate-900">
+                                <option>ADMIN</option>
+                                <option>OPERATEUR</option>
+                                <option>LECTEUR</option>
+                              </select>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className={`rounded border px-2 py-1 text-[10px] ${u.actif ? 'border-emerald-500/30 text-emerald-500' : 'border-rose-500/30 text-rose-500'}`}>
+                                {u.actif ? 'Actif' : 'Inactif'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5 text-center">
+                              <button onClick={() => handleUserPatch(u, { actif: !u.actif })}
+                                className="rounded border border-slate-300 px-2 py-1 text-[10px] text-slate-600 hover:border-emerald-500 dark:border-slate-700 dark:text-slate-300">
+                                {u.actif ? 'Desactiver' : 'Activer'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {users.length === 0 && (
+                          <tr><td colSpan={5} className="py-8 text-center text-slate-500">Aucun utilisateur visible ou role ADMIN requis</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {false && activeNav === 'users' && (
                 <div className="text-center py-16">
                   <Users className="mx-auto mb-3 text-slate-600" size={40}/>
                   <p className="text-slate-600 dark:text-slate-400 text-sm">Gestion des utilisateurs</p>
