@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from influx_service import ecrire_mesure
 from alert_service import verifier_et_alerter
 from email_service import envoyer_email_alerte
+from mesure_service import enregistrer_mesure
+from audit_service import journaliser
 
 load_dotenv()
 
@@ -48,6 +50,7 @@ def on_message(client, userdata, msg):
         }
 
         ecrire_mesure(device_id, mq2_ppm, mq7_ppm, niveau_cuve, fuite_sol)
+        enregistrer_mesure(device_id, mq2_ppm, temp_c, hum, fuite_sol, niveau, source="MQTT")
 
         if gestionnaire_ws:
             import asyncio
@@ -63,6 +66,14 @@ def on_message(client, userdata, msg):
             asyncio.run(gestionnaire_ws.diffuser(payload_ws))
 
         alertes = verifier_et_alerter(donnees_normalisees)
+        if alertes:
+            journaliser(
+                "ALERTE_MQTT",
+                "capteur",
+                device_id,
+                "SYSTEME",
+                {"niveau": niveau, "alertes": alertes},
+            )
 
         for alerte in alertes:
             if alerte["niveau"] in ["WARNING", "DANGER", "CRITIQUE"]:

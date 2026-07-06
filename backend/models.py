@@ -1,5 +1,5 @@
 # backend/models.py
-from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Float, Boolean, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.sql import func
 from database import Base
 
@@ -66,3 +66,29 @@ class Electrovanne(Base):
     mode            = Column(String, default="AUTO")
     derniere_action = Column(DateTime, server_default=func.now())
     actionneur      = Column(String)
+
+
+class MesureCapteur(Base):
+    __tablename__ = "mesures_capteurs"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    capteur_id  = Column(String, ForeignKey("capteurs.id"), index=True)
+    gaz_ppm     = Column(Float, default=0)
+    temp_c      = Column(Float, default=0)
+    hum         = Column(Float, default=0)
+    fuite_sol   = Column(Boolean, default=False)
+    niveau      = Column(String, default="NORMAL")
+    source      = Column(String, default="MQTT")
+    date_mesure = Column(DateTime, server_default=func.now(), index=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    utilisateur = Column(String, default="SYSTEME", index=True)
+    action      = Column(String, nullable=False, index=True)
+    cible_type  = Column(String, default="")
+    cible_id    = Column(String, default="", index=True)
+    details     = Column(Text)
+    date_action = Column(DateTime, server_default=func.now(), index=True)

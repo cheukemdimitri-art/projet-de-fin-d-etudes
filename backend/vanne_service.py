@@ -2,9 +2,16 @@
 from datetime import datetime
 from database import get_connexion
 import paho.mqtt.publish as publish
+import os
+import ssl
+from dotenv import load_dotenv
 
-MQTT_BROKER = "localhost"
-MQTT_PORT   = 1883
+load_dotenv()
+
+MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_PORT   = int(os.getenv("MQTT_COMMAND_PORT", os.getenv("MQTT_PORT", 1883)))
+MQTT_USER   = os.getenv("MQTT_USER", "")
+MQTT_PASS   = os.getenv("MQTT_PASSWORD", "")
 
 # ── Récupérer la vanne liée à un capteur ──────────────────────────────────────
 def obtenir_vanne_par_capteur(capteur_id):
@@ -59,7 +66,9 @@ def envoyer_commande_vanne(zone_id, commande):
     """
     try:
         topic = f"lab/{zone_id.lower()}/commande_vanne"
-        publish.single(topic, commande, hostname=MQTT_BROKER, port=MQTT_PORT)
+        auth = {"username": MQTT_USER, "password": MQTT_PASS} if MQTT_USER and MQTT_PASS else None
+        tls = {"tls_version": ssl.PROTOCOL_TLS_CLIENT} if MQTT_PORT == 8883 else None
+        publish.single(topic, commande, hostname=MQTT_BROKER, port=MQTT_PORT, auth=auth, tls=tls)
         print(f"📡 Commande envoyée à l'ESP32 : {topic} → {commande}")
         return True
     except Exception as e:

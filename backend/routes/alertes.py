@@ -9,6 +9,8 @@ from security import obtenir_utilisateur_courant
 from fastapi.responses import FileResponse
 from rapport_service import generer_rapport_mensuel, generer_rapport_incident
 from qrcode_service import generer_qrcode_capteur
+from audit_service import journaliser
+from mesure_service import capteurs_muets
 router = APIRouter()
 
 # ── GET /api/alertes — Liste toutes les alertes ───────────────────────────────
@@ -74,6 +76,13 @@ def acquitter_alerte(
     alerte.date_acquittement = datetime.utcnow()
 
     db.commit()
+    journaliser(
+        "ACQUITTER_ALERTE",
+        "alerte",
+        alerte_id,
+        utilisateur.get("email", "INCONNU"),
+        {"commentaire": commentaire, "capteur_id": alerte.capteur_id},
+    )
 
     print(f"✅ Alerte {alerte_id} acquittée")
     return {
@@ -93,16 +102,21 @@ def get_stats(db: Session = Depends(get_db)):
         Alerte.niveau == "CRITIQUE",
         Alerte.acquittee == False
     ).count()
+    muets = capteurs_muets(10)
 
     return {
         "capteurs": {
             "total":  total_capteurs,
             "actifs": capteurs_actifs,
+            "muets": len(muets),
         },
         "alertes": {
             "total":    total_alertes,
             "actives":  alertes_actives,
             "critiques": alertes_critiques,
+        },
+        "maintenance": {
+            "capteurs_muets": len(muets),
         },
         "statut_global": "DANGER" if alertes_critiques > 0
                          else "WARNING" if alertes_actives > 0

@@ -73,7 +73,7 @@ def obtenir_ou_creer_utilisateur_google(email: str, nom: str):
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT id, nom, email, role
+            SELECT id, nom, email, role, actif
             FROM utilisateurs
             WHERE email = %s
         """, (email,))
@@ -81,6 +81,8 @@ def obtenir_ou_creer_utilisateur_google(email: str, nom: str):
 
         if row:
             cur.close()
+            if not row[4]:
+                return None
             return {"id": row[0], "nom": row[1], "email": row[2], "role": row[3]}
 
         utilisateur_id = str(uuid.uuid4())
@@ -116,7 +118,7 @@ def authentifier_utilisateur(email: str, mot_de_passe: str):
         conn = get_connexion()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, nom, email, mot_de_passe, role
+            SELECT id, nom, email, mot_de_passe, role, actif
             FROM utilisateurs
             WHERE email = %s
         """, (email,))
@@ -127,7 +129,11 @@ def authentifier_utilisateur(email: str, mot_de_passe: str):
             print(f"Aucun utilisateur trouve pour {email}")
             return None
 
-        utilisateur_id, nom, email_bd, mdp_stocke, role = row
+        utilisateur_id, nom, email_bd, mdp_stocke, role, actif = row
+
+        if not actif:
+            print(f"Utilisateur inactif : {email}")
+            return None
 
         # Comparaison simple (mot de passe en clair)
         if mot_de_passe == mdp_stocke:

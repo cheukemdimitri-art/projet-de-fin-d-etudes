@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime
 from database import get_connexion
 from vanne_service import fermer_vanne_automatique
+from audit_service import journaliser
+
 # ── Évaluer le niveau d'alerte ────────────────────────────────────────────────
 def evaluer_niveau(valeur, seuil_warning, seuil_danger, seuil_critique):
     if valeur >= seuil_critique:
@@ -45,6 +47,7 @@ def creer_alerte(capteur_id, niveau, message):
         conn.commit()
         cur.close()
         print(f"🚨 Alerte créée : {niveau} pour {capteur_id}")
+        journaliser("CREER_ALERTE", "capteur", capteur_id, "SYSTEME", {"alerte_id": alerte_id, "niveau": niveau})
         return alerte_id
 
     except Exception as e:

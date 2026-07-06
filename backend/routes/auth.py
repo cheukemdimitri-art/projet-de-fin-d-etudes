@@ -1,6 +1,6 @@
-# backend/routes/auth.py
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from audit_service import journaliser
 from auth_service import (
     authentifier_utilisateur,
     creer_token,
@@ -10,6 +10,7 @@ from auth_service import (
 
 router = APIRouter()
 
+
 class LoginRequest(BaseModel):
     email: str
     mot_de_passe: str
@@ -18,16 +19,15 @@ class LoginRequest(BaseModel):
 class GoogleRegisterRequest(BaseModel):
     id_token: str
 
-# ── POST /auth/login ──────────────────────────────────────────────────────────
+
 @router.post("/auth/login")
 def login(donnees: LoginRequest):
     utilisateur = authentifier_utilisateur(donnees.email, donnees.mot_de_passe)
-
     if not utilisateur:
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
     token = creer_token(utilisateur["id"], utilisateur["email"], utilisateur["role"])
-
+    journaliser("LOGIN", "utilisateur", utilisateur["id"], utilisateur["email"], {"mode": "password"})
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -35,8 +35,8 @@ def login(donnees: LoginRequest):
             "id": utilisateur["id"],
             "nom": utilisateur["nom"],
             "email": utilisateur["email"],
-            "role": utilisateur["role"]
-        }
+            "role": utilisateur["role"],
+        },
     }
 
 
@@ -50,16 +50,12 @@ def register_google(donnees: GoogleRegisterRequest):
     if not profil_google:
         raise HTTPException(status_code=401, detail="Verification Google invalide")
 
-    utilisateur = obtenir_ou_creer_utilisateur_google(
-        profil_google["email"],
-        profil_google["nom"],
-    )
-
+    utilisateur = obtenir_ou_creer_utilisateur_google(profil_google["email"], profil_google["nom"])
     if not utilisateur:
         raise HTTPException(status_code=500, detail="Erreur creation utilisateur")
 
     token = creer_token(utilisateur["id"], utilisateur["email"], utilisateur["role"])
-
+    journaliser("LOGIN", "utilisateur", utilisateur["id"], utilisateur["email"], {"mode": "google"})
     return {
         "access_token": token,
         "token_type": "bearer",

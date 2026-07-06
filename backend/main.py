@@ -8,6 +8,9 @@ from routes.zones import router as zones_router
 from routes.alertes import router as alertes_router
 from routes.vannes import router as vannes_router
 from routes.auth import router as auth_router
+from routes.audit import router as audit_router
+from routes.users import router as users_router
+from routes.simulation import router as simulation_router
 from scheduler_service import demarrer_planificateur
 from qrcode_service import generer_tous_qrcodes
 import json
@@ -69,6 +72,9 @@ app.include_router(zones_router)
 app.include_router(alertes_router)
 app.include_router(vannes_router)
 app.include_router(auth_router)
+app.include_router(audit_router)
+app.include_router(users_router)
+app.include_router(simulation_router)
 
 # ── Endpoints de base ─────────────────────────────────────────────────────────
 @app.get("/")
