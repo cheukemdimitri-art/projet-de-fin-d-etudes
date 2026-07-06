@@ -71,7 +71,7 @@ const NAV = [
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
 
-const APK_FILE_NAME = 'PURECONTROL-v1.1-release.apk';
+const APK_FILE_NAME = 'PURECONTROL-v1.2-release.apk';
 const APK_DOWNLOAD_URL = `/downloads/${APK_FILE_NAME}`;
 
 const formatDate = (value) => {
@@ -1061,7 +1061,7 @@ export default function Dashboard({ user }) {
                             Version mobile adaptee au projet PURECONTROL pour consulter les capteurs, suivre les alertes et garder le controle terrain depuis un telephone Android.
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-mono">
-                            <span className="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">v1.1 release</span>
+                            <span className="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">v1.2 release</span>
                             <span className="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">Android APK</span>
                             <span className="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">~20 Mo</span>
                           </div>
