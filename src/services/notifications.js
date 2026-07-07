@@ -3,7 +3,9 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 
 const NOTIF_ENABLED_KEY = 'purecontrol_notifications_enabled';
 const LAST_NOTIF_KEY = 'purecontrol_last_notification';
-const CHANNEL_ID = 'purecontrol_alertes';
+const CHANNEL_ID = 'purecontrol_alertes_persistantes';
+const OLD_CHANNEL_ID = 'purecontrol_alertes';
+const NOTIFICATION_GROUP = 'purecontrol_alertes_groupe';
 const LEVELS = ['NORMAL', 'WARNING', 'DANGER', 'CRITIQUE'];
 
 const isNative = () => Capacitor.isNativePlatform?.() === true;
@@ -53,13 +55,18 @@ export const notificationService = {
     localStorage.setItem(NOTIF_ENABLED_KEY, granted ? 'true' : 'false');
 
     if (granted) {
+      try {
+        await LocalNotifications.deleteChannel({ id: OLD_CHANNEL_ID });
+      } catch {}
+
       await LocalNotifications.createChannel({
         id: CHANNEL_ID,
-        name: 'Alertes PURECONTROL',
-        description: 'Notifications des alertes capteurs en temps reel',
+        name: 'Alertes persistantes PURECONTROL',
+        description: 'Alertes capteurs visibles dans la liste des notifications',
         importance: 5,
         visibility: 1,
         lights: true,
+        lightColor: '#10b981',
         vibration: true,
       });
     }
@@ -86,12 +93,17 @@ export const notificationService = {
       localStorage.setItem(LAST_NOTIF_KEY, JSON.stringify({ key, time: now }));
     }
 
-    const title = `Alerte ${niveau}`;
+    const title = `PURECONTROL - Alerte ${niveau}`;
     const body = `Capteur ${capteurId} : intervention requise.`;
+    const persistentAlert = ['DANGER', 'CRITIQUE'].includes(niveau);
 
     if (!isNative()) {
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, { body });
+        new Notification(title, {
+          body,
+          requireInteraction: true,
+          tag: key,
+        });
         return true;
       }
       return false;
@@ -102,7 +114,15 @@ export const notificationService = {
         id: Math.floor(now % 2147483647),
         title,
         body,
+        largeBody: `${body}\nNiveau : ${niveau}\nTouchez la notification pour ouvrir PURECONTROL.`,
+        summaryText: 'Alerte capteur PURECONTROL',
         channelId: CHANNEL_ID,
+        smallIcon: 'ic_stat_purecontrol',
+        iconColor: '#10b981',
+        group: NOTIFICATION_GROUP,
+        ongoing: persistentAlert,
+        autoCancel: false,
+        extra: { capteurId, niveau, source: payload.source || 'LIVE' },
         schedule: { at: new Date(now + 100) },
       }],
     });
