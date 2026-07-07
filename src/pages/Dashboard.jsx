@@ -72,7 +72,7 @@ const NAV = [
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
 
-const APK_FILE_NAME = 'PURECONTROL-v1.5-release.apk';
+const APK_FILE_NAME = 'PURECONTROL-v1.6-release.apk';
 const APK_DOWNLOAD_URL = `/downloads/${APK_FILE_NAME}`;
 
 const formatDate = (value) => {
@@ -103,6 +103,127 @@ const getLiveValueForCapteur = (capteur, data) => {
   if (capteur.id === 'CAP_B2' && data.fuite_sol !== undefined) return data.fuite_sol ? 1 : 0;
   return undefined;
 };
+
+const pointValue = (point) => Number(point?.gaz_ppm || point?.temp_c || (point?.fuite_sol ? 1 : 0) || 0);
+
+const sensorUnit = (type) => {
+  if (type === 'TEMPERATURE') return 'deg C';
+  if (type === 'LIQUIDE_SOL') return 'etat';
+  return 'ppm';
+};
+
+const makeFallbackWave = (capteur) => {
+  const base = Math.max(1, Number(capteur?.derniere_valeur || capteur?.seuil_warning || 100));
+  const amplitude = Math.max(base * 0.18, 1);
+  return Array.from({ length: 48 }, (_, idx) => ({
+    date_mesure: `t-${47 - idx}`,
+    synthetic: true,
+    gaz_ppm: Math.max(0, base + Math.sin((idx / 47) * Math.PI * 4) * amplitude),
+  }));
+};
+
+function SinusoidalChart({ capteur, points }) {
+  const source = points.length > 1 ? points.slice(-96) : makeFallbackWave(capteur);
+  const values = source.map(pointValue);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, Number(capteur?.seuil_critique || 0), 1);
+  const avg = values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+  const width = 720;
+  const height = 220;
+  const pad = 26;
+  const range = Math.max(max - min, 1);
+  const xFor = (idx) => pad + (idx / Math.max(source.length - 1, 1)) * (width - pad * 2);
+  const yFor = (value) => height - pad - ((value - min) / range) * (height - pad * 2);
+
+  const path = source.map((point, idx) => {
+    const x = xFor(idx);
+    const y = yFor(pointValue(point));
+    if (idx === 0) return `M ${x.toFixed(2)} ${y.toFixed(2)}`;
+    const prevX = xFor(idx - 1);
+    const cp1 = prevX + (x - prevX) * 0.45;
+    const cp2 = prevX + (x - prevX) * 0.55;
+    return `C ${cp1.toFixed(2)} ${yFor(pointValue(source[idx - 1])).toFixed(2)}, ${cp2.toFixed(2)} ${y.toFixed(2)}, ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
+
+  const areaPath = `${path} L ${xFor(source.length - 1).toFixed(2)} ${height - pad} L ${pad} ${height - pad} Z`;
+  const thresholdLines = [
+    { label: 'Warning', value: Number(capteur?.seuil_warning), color: '#f59e0b' },
+    { label: 'Danger', value: Number(capteur?.seuil_danger), color: '#ef4444' },
+    { label: 'Critique', value: Number(capteur?.seuil_critique), color: '#dc2626' },
+  ].filter(item => Number.isFinite(item.value) && item.value > min && item.value < max);
+  const lastValue = values[values.length - 1] || 0;
+  const unit = sensorUnit(capteur?.type);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2 text-[10px] sm:grid-cols-4">
+        {[
+          ['Actuelle', lastValue],
+          ['Minimum', min],
+          ['Moyenne', avg],
+          ['Maximum', Math.max(...values)],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded border border-slate-200 bg-slate-100 p-2 dark:border-slate-800 dark:bg-slate-900">
+            <div className="text-slate-500">{label}</div>
+            <div className="font-mono font-semibold text-slate-950 dark:text-white">{formatValeur(value, 2)} {unit}</div>
+          </div>
+        ))}
+      </div>
+      <div className="relative h-64 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="sensorWaveFill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.36" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.03" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((ratio) => (
+            <line key={ratio} x1={pad} x2={width - pad} y1={pad + ratio * (height - pad * 2)} y2={pad + ratio * (height - pad * 2)}
+              stroke="currentColor" className="text-slate-300 dark:text-slate-800" strokeWidth="1" />
+          ))}
+          {thresholdLines.map((line) => {
+            const y = yFor(line.value);
+            return (
+              <g key={line.label}>
+                <line x1={pad} x2={width - pad} y1={y} y2={y} stroke={line.color} strokeWidth="1.5" strokeDasharray="8 8" />
+                <text x={width - pad - 4} y={y - 4} textAnchor="end" fill={line.color} fontSize="10">{line.label}</text>
+              </g>
+            );
+          })}
+          <path d={areaPath} fill="url(#sensorWaveFill)" />
+          <path d={path} fill="none" stroke="#10b981" strokeWidth="4" strokeLinecap="round" />
+          <circle cx={xFor(source.length - 1)} cy={yFor(lastValue)} r="5" fill="#10b981" stroke="#052e2b" strokeWidth="2" />
+        </svg>
+        {points.length <= 1 && (
+          <div className="absolute left-3 top-3 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-600 dark:text-amber-300">
+            Courbe indicative en attendant plus de mesures
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MiniSensorWave({ capteur }) {
+  const width = 180;
+  const height = 42;
+  const points = makeFallbackWave(capteur).slice(-36);
+  const values = points.map(pointValue);
+  const min = Math.min(...values);
+  const max = Math.max(...values, 1);
+  const range = Math.max(max - min, 1);
+  const path = values.map((value, idx) => {
+    const x = (idx / Math.max(values.length - 1, 1)) * width;
+    const y = height - 4 - ((value - min) / range) * (height - 8);
+    return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-11 w-full rounded border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900" preserveAspectRatio="none">
+      <path d={path} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 const openBackendFile = (url) => {
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -757,6 +878,7 @@ export default function Dashboard({ user }) {
                               <div className="font-mono text-rose-400">{c.seuil_danger}</div>
                             </div>
                           </div>
+                          <MiniSensorWave capteur={c} />
                           <div className="mt-3 grid grid-cols-3 gap-1.5">
                             <button onClick={() => handleQrCode(c)}
                               className="bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[10px] py-2 rounded transition">
@@ -793,21 +915,7 @@ export default function Dashboard({ user }) {
                           Fermer
                         </button>
                       </div>
-                      <div className="flex h-40 items-end gap-1 border-b border-slate-200 dark:border-slate-800 px-1">
-                        {historyPoints.length === 0 && (
-                          <div className="w-full pb-10 text-center text-xs text-slate-500">Aucune mesure historique</div>
-                        )}
-                        {historyPoints.slice(-80).map((point, idx) => {
-                          const value = Number(point.gaz_ppm || point.temp_c || (point.fuite_sol ? 1 : 0));
-                          const max = Math.max(...historyPoints.map(p => Number(p.gaz_ppm || p.temp_c || (p.fuite_sol ? 1 : 0))), 1);
-                          return (
-                            <div key={idx} title={`${point.date_mesure} - ${value}`}
-                              className="flex-1 rounded-t bg-emerald-500/70 min-w-[3px]"
-                              style={{ height: `${Math.max(4, (value / max) * 100)}%` }}
-                            />
-                          );
-                        })}
-                      </div>
+                      <SinusoidalChart capteur={historyCapteur} points={historyPoints} />
                     </div>
                   )}
                 </div>
