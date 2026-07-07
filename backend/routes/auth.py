@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from audit_service import journaliser
 from auth_service import (
     authentifier_utilisateur,
+    creer_utilisateur_email,
     creer_token,
     obtenir_ou_creer_utilisateur_google,
     verifier_token_google,
@@ -12,6 +13,12 @@ router = APIRouter()
 
 
 class LoginRequest(BaseModel):
+    email: str
+    mot_de_passe: str
+
+
+class RegisterRequest(BaseModel):
+    nom: str
     email: str
     mot_de_passe: str
 
@@ -28,6 +35,30 @@ def login(donnees: LoginRequest):
 
     token = creer_token(utilisateur["id"], utilisateur["email"], utilisateur["role"])
     journaliser("LOGIN", "utilisateur", utilisateur["id"], utilisateur["email"], {"mode": "password"})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "utilisateur": {
+            "id": utilisateur["id"],
+            "nom": utilisateur["nom"],
+            "email": utilisateur["email"],
+            "role": utilisateur["role"],
+        },
+    }
+
+
+@router.post("/auth/register")
+def register(donnees: RegisterRequest):
+    utilisateur, erreur = creer_utilisateur_email(
+        donnees.nom,
+        donnees.email,
+        donnees.mot_de_passe,
+    )
+    if not utilisateur:
+        raise HTTPException(status_code=400, detail=erreur or "Inscription impossible")
+
+    token = creer_token(utilisateur["id"], utilisateur["email"], utilisateur["role"])
+    journaliser("REGISTER", "utilisateur", utilisateur["id"], utilisateur["email"], {"mode": "password"})
     return {
         "access_token": token,
         "token_type": "bearer",

@@ -111,6 +111,50 @@ def obtenir_ou_creer_utilisateur_google(email: str, nom: str):
         if conn:
             conn.close()
 
+
+def creer_utilisateur_email(nom: str, email: str, mot_de_passe: str):
+    conn = None
+    try:
+        nom = (nom or "").strip()
+        email = (email or "").strip().lower()
+        mot_de_passe = mot_de_passe or ""
+
+        if len(nom) < 2 or "@" not in email or len(mot_de_passe) < 6:
+            return None, "Nom, email ou mot de passe invalide"
+
+        conn = get_connexion()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM utilisateurs WHERE email = %s", (email,))
+        if cur.fetchone():
+            cur.close()
+            return None, "Un compte existe deja avec cet email"
+
+        utilisateur_id = str(uuid.uuid4())
+        role = "OPERATEUR"
+        cur.execute("""
+            INSERT INTO utilisateurs (id, nom, email, mot_de_passe, role, actif)
+            VALUES (%s, %s, %s, %s, %s, true)
+        """, (utilisateur_id, nom, email, mot_de_passe, role))
+
+        conn.commit()
+        cur.close()
+
+        return {
+            "id": utilisateur_id,
+            "nom": nom,
+            "email": email,
+            "role": role,
+        }, None
+
+    except Exception as e:
+        print(f"Erreur creation utilisateur email : {e}")
+        if conn:
+            conn.rollback()
+        return None, "Erreur creation utilisateur"
+    finally:
+        if conn:
+            conn.close()
+
 # Authentifier un utilisateur (email + mot de passe en clair pour le moment)
 def authentifier_utilisateur(email: str, mot_de_passe: str):
     conn = None
