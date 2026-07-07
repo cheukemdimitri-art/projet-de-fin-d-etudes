@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { dashboardService, actionService, authService, documentService, WS_BASE_URL } from '../services/api';
 import { notificationService } from '../services/notifications';
+import { pushNotificationService } from '../services/push';
 
 // ---- Icône selon type de capteur (doc §3.2) ----
 function SensorIcon({ type, size = 14, className = '' }) {
@@ -72,7 +73,7 @@ const NAV = [
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
 
-const APK_FILE_NAME = 'PURECONTROL-v1.7-release.apk';
+const APK_FILE_NAME = 'PURECONTROL-v1.8-release.apk';
 const APK_DOWNLOAD_URL = `/downloads/${APK_FILE_NAME}`;
 
 const formatDate = (value) => {
@@ -308,7 +309,12 @@ export default function Dashboard({ user }) {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   useEffect(() => {
-    notificationService.initialize().then(setNotificationOn);
+    Promise.all([
+      notificationService.initialize(),
+      pushNotificationService.initialize(),
+    ]).then(([localEnabled, pushEnabled]) => {
+      setNotificationOn(Boolean(localEnabled || pushEnabled));
+    });
   }, []);
 
   useEffect(() => {
@@ -367,7 +373,9 @@ export default function Dashboard({ user }) {
 
   const handleNotifications = async () => {
     try {
-      const enabled = await notificationService.enable();
+      const localEnabled = await notificationService.enable();
+      const pushEnabled = await pushNotificationService.enable();
+      const enabled = Boolean(localEnabled || pushEnabled);
       setNotificationOn(enabled);
       if (!enabled) alert('Notifications non autorisees sur cet appareil.');
     } catch {
