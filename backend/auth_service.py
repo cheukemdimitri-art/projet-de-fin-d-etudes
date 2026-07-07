@@ -6,6 +6,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from jose import JWTError, jwt
+from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_connexion
 # Configuration JWT
 SECRET_KEY = "pfe-detection-fuites-iut-bandjoun-2024-cle-secrete"
@@ -13,6 +14,14 @@ ALGORITHM = "HS256"
 EXPIRATION_MINUTES = 1440
 DEFAULT_GOOGLE_CLIENT_ID = "430510354808-2v3nmcdu2hi64rgo220le8uala3caftp.apps.googleusercontent.com"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID") or DEFAULT_GOOGLE_CLIENT_ID
+
+
+def _mot_de_passe_valide(mot_de_passe: str, valeur_stockee: str) -> bool:
+    if not valeur_stockee:
+        return False
+    if valeur_stockee.startswith(("scrypt:", "pbkdf2:", "argon2:")):
+        return check_password_hash(valeur_stockee, mot_de_passe)
+    return mot_de_passe == valeur_stockee
 
 # Creer un token JWT
 def creer_token(utilisateur_id: str, email: str, role: str) -> str:
@@ -131,10 +140,11 @@ def creer_utilisateur_email(nom: str, email: str, mot_de_passe: str):
 
         utilisateur_id = str(uuid.uuid4())
         role = "OPERATEUR"
+        mot_de_passe_hash = generate_password_hash(mot_de_passe)
         cur.execute("""
             INSERT INTO utilisateurs (id, nom, email, mot_de_passe, role, actif)
             VALUES (%s, %s, %s, %s, %s, true)
-        """, (utilisateur_id, nom, email, mot_de_passe, role))
+        """, (utilisateur_id, nom, email, mot_de_passe_hash, role))
 
         conn.commit()
         cur.close()
@@ -179,8 +189,7 @@ def authentifier_utilisateur(email: str, mot_de_passe: str):
             print(f"Utilisateur inactif : {email}")
             return None
 
-        # Comparaison simple (mot de passe en clair)
-        if mot_de_passe == mdp_stocke:
+        if _mot_de_passe_valide(mot_de_passe, mdp_stocke):
             return {"id": utilisateur_id, "nom": nom, "email": email_bd, "role": role}
 
         print(f"Mot de passe incorrect pour {email}")
