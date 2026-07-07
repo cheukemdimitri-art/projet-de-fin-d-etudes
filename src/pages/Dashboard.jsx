@@ -72,7 +72,7 @@ const NAV = [
   { id: 'users',     label: 'Utilisateurs', icon: Users },
 ];
 
-const APK_FILE_NAME = 'PURECONTROL-v1.4-release.apk';
+const APK_FILE_NAME = 'PURECONTROL-v1.5-release.apk';
 const APK_DOWNLOAD_URL = `/downloads/${APK_FILE_NAME}`;
 
 const formatDate = (value) => {

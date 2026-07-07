@@ -8,6 +8,7 @@ export default function Login({ onLogin }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,6 +34,10 @@ export default function Login({ onLogin }) {
 
     if (password.length < 6) {
       setError('Le mot de passe doit contenir au moins 6 caracteres.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Les deux mots de passe ne correspondent pas.');
       return;
     }
 
@@ -209,6 +214,19 @@ export default function Login({ onLogin }) {
                   >
                     {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-500 uppercase tracking-wider mb-1">Confirmer le mot de passe</label>
+                  <input
+                    type={showPwd ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeter le mot de passe"
+                    required
+                    minLength={6}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition font-mono"
+                  />
                 </div>
 
                 {error && (
