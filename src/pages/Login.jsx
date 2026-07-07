@@ -5,6 +5,7 @@ import { authService } from '../services/api';
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState('login');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -21,6 +22,26 @@ export default function Login({ onLogin }) {
       onLogin(user);
     } catch {
       setError('Email ou mot de passe incorrect.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caracteres.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const user = await authService.register(name, email, password);
+      onLogin(user);
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Inscription impossible.');
     } finally {
       setLoading(false);
     }
@@ -144,17 +165,78 @@ export default function Login({ onLogin }) {
 
           {mode === 'register' && (
             <div className="space-y-4">
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-slate-500 uppercase tracking-wider mb-1">Nom complet</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Operateur PURECONTROL"
+                    required
+                    minLength={2}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-500 uppercase tracking-wider mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="operateur@iut-bandjoun.cm"
+                    required
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition font-mono"
+                  />
+                </div>
+
+                <div className="relative">
+                  <label className="block text-xs text-slate-500 uppercase tracking-wider mb-1">Mot de passe</label>
+                  <input
+                    type={showPwd ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="6 caracteres minimum"
+                    required
+                    minLength={6}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 pr-10 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd(!showPwd)}
+                    className="absolute right-3 top-8 text-slate-500 hover:text-slate-300"
+                  >
+                    {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                {error && (
+                  <div className="bg-rose-950/30 border border-rose-800/50 rounded-lg px-3 py-2 text-xs text-rose-400">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader size={15} className="animate-spin" /> Creation...
+                    </>
+                  ) : (
+                    'Creer mon compte'
+                  )}
+                </button>
+              </form>
+
               <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-3">
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Inscription reservee aux comptes Google verifies.
+                  Google reste disponible si le navigateur de l'appareil le prend en charge.
                 </p>
               </div>
-
-              {error && (
-                <div className="bg-rose-950/30 border border-rose-800/50 rounded-lg px-3 py-2 text-xs text-rose-400">
-                  {error}
-                </div>
-              )}
 
               <div className="flex justify-center">
                 <GoogleLogin

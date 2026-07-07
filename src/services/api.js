@@ -59,6 +59,13 @@ export const authService = {
     localStorage.setItem('purecontrol_user', JSON.stringify(res.data.utilisateur));
     return res.data.utilisateur;
   },
+  async register(nom, email, mot_de_passe) {
+    const res = await api.post('/auth/register', { nom, email, mot_de_passe });
+    localStorage.setItem('purecontrol_token', res.data.access_token);
+    localStorage.setItem('purecontrol_role', res.data.utilisateur.role);
+    localStorage.setItem('purecontrol_user', JSON.stringify(res.data.utilisateur));
+    return res.data.utilisateur;
+  },
   async registerWithGoogle(id_token) {
     const res = await api.post('/auth/register/google', { id_token });
     localStorage.setItem('purecontrol_token', res.data.access_token);
