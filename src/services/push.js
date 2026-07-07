@@ -4,10 +4,12 @@ import api from './api';
 import { notificationService } from './notifications';
 
 const PUSH_TOKEN_KEY = 'purecontrol_push_token';
+const FCM_ENABLED = import.meta.env.VITE_ENABLE_FCM === 'true';
 let listenersReady = false;
 let registrationPromise = null;
 
 const isNative = () => Capacitor.isNativePlatform?.() === true;
+const canUseFcm = () => isNative() && FCM_ENABLED;
 
 const saveToken = async (token) => {
   if (!token) return false;
@@ -20,7 +22,7 @@ const saveToken = async (token) => {
 };
 
 const ensureListeners = () => {
-  if (listenersReady || !isNative()) return;
+  if (listenersReady || !canUseFcm()) return;
   listenersReady = true;
 
   PushNotifications.addListener('registration', ({ value }) => {
@@ -51,7 +53,7 @@ const ensureListeners = () => {
 
 export const pushNotificationService = {
   async initialize() {
-    if (!isNative()) return false;
+    if (!canUseFcm()) return false;
     ensureListeners();
 
     try {
@@ -64,7 +66,7 @@ export const pushNotificationService = {
   },
 
   async enable() {
-    if (!isNative()) return false;
+    if (!canUseFcm()) return false;
     ensureListeners();
 
     try {
@@ -77,7 +79,7 @@ export const pushNotificationService = {
   },
 
   async register() {
-    if (!isNative()) return false;
+    if (!canUseFcm()) return false;
 
     const existingToken = localStorage.getItem(PUSH_TOKEN_KEY);
     if (existingToken) {
