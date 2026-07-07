@@ -2,7 +2,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from database import Base, engine
-from models import Zone, Capteur, Alerte, Utilisateur
+from models import Zone, Capteur, Alerte, Utilisateur, PushToken
 from routes.capteurs import router as capteurs_router
 from routes.zones import router as zones_router
 from routes.alertes import router as alertes_router
@@ -12,6 +12,7 @@ from routes.audit import router as audit_router
 from routes.users import router as users_router
 from routes.simulation import router as simulation_router
 from routes.diagnostic import router as diagnostic_router
+from routes.push import router as push_router
 from scheduler_service import demarrer_planificateur
 from qrcode_service import generer_tous_qrcodes
 import json
@@ -77,6 +78,7 @@ app.include_router(audit_router)
 app.include_router(users_router)
 app.include_router(simulation_router)
 app.include_router(diagnostic_router)
+app.include_router(push_router)
 
 # ── Endpoints de base ─────────────────────────────────────────────────────────
 @app.get("/")

@@ -92,3 +92,15 @@ class AuditLog(Base):
     cible_id    = Column(String, default="", index=True)
     details     = Column(Text)
     date_action = Column(DateTime, server_default=func.now(), index=True)
+
+
+class PushToken(Base):
+    __tablename__ = "push_tokens"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+    utilisateur_id      = Column(String, ForeignKey("utilisateurs.id"), index=True)
+    token               = Column(Text, unique=True, nullable=False)
+    plateforme          = Column(String, default="android")
+    actif               = Column(Boolean, default=True, index=True)
+    date_enregistrement = Column(DateTime, server_default=func.now())
+    derniere_activite   = Column(DateTime, server_default=func.now(), onupdate=func.now())
